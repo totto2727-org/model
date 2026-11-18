@@ -76,6 +76,7 @@
           default = pkgs.mkShell {
             packages = [
               (toolchainFor pkgs)
+              self.packages.${system}.serde-gen
             ];
             shellHook = ''
               # Enable Git Hook

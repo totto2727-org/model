@@ -14,7 +14,10 @@ description = "Attribute-driven static JSON codec generation for MoonBit"
 
 source = "src"
 
+preferred_target = "native"
+
 import {
+  "moonbitlang/async@0.22.4",
   "moonbitlang/parser@0.4.9",
   "moonbitlang/x@0.5.7",
 }
