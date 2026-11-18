@@ -1,4 +1,10 @@
 ///|
+const PACKAGE_OPTION = "package"
+
+///|
+const OUTPUT_OPTION = "output"
+
+///|
 const USAGE =
   #|Usage: serde-gen INPUT... --output OUTPUT
   #|       serde-gen --package DIR
@@ -11,22 +17,56 @@ priv suberror CliError {
 }
 
 ///|
-fn run(args : ArrayView[String]) -> Unit raise {
-  if args is ["--package", directory] && !directory.is_empty() {
-    generate_package(directory)
-    return
+priv enum GenerateOptions {
+  Package(String)
+  Files(ReadOnlyArray[String], String)
+}
+
+///|
+async fn run(args : ArrayView[String]) -> Unit {
+  // Preserve the existing grammar and usage status before core argparse can exit.
+  let package_flag = "--" + PACKAGE_OPTION
+  let output_flag = "--" + OUTPUT_OPTION
+  let argv = match args {
+    [flag, directory] if flag == package_flag && !directory.is_empty() =>
+      [package_flag + "=" + directory]
+    [.. inputs, flag, output] if flag == output_flag &&
+      !inputs.is_empty() &&
+      !output.is_empty() &&
+      !output.has_prefix("-") &&
+      inputs.all(input => {
+        !input.is_empty() && !input.has_prefix("-") && input != output
+      }) => args.to_owned()
+    _ => raise Usage
   }
-  guard args is [.. inputs, "--output", output] &&
-    !inputs.is_empty() &&
-    !output.is_empty() &&
-    !output.has_prefix("-") else {
-    raise Usage
-  }
+  let inputs = @admiral.position_strings("INPUT")
+  let output = @admiral.string(OUTPUT_OPTION)
+  let package_dir = @admiral.string(PACKAGE_OPTION)
+  let app = @admiral.CliApp::CliApp(
+    name="serde-gen",
+    positionals=[inputs],
+    options=[output, package_dir],
+    run=Some(ctx => {
+      let options : GenerateOptions = match ctx.get_string(package_dir) {
+        Some(directory) => Package(directory)
+        None => Files(ctx.get_strings(inputs), ctx.get_string_required(output))
+      }
+      match options {
+        Package(directory) => generate_package(directory)
+        Files(inputs, output) => generate_files(inputs, output)
+      }
+    }),
+  )
+  app.run(argv=Some(argv))
+}
+
+///|
+fn generate_files(
+  inputs : ReadOnlyArray[String],
+  output : String,
+) -> Unit raise {
   let sources : Array[(String, String)] = []
   for input in inputs {
-    if input.is_empty() || input.has_prefix("-") || input == output {
-      raise Usage
-    }
     sources.push((input, @fs.read_file_to_string(input)))
   }
   generate(sources, output)
@@ -49,7 +89,7 @@ fn generate(sources : Array[(String, String)], output : String) -> Unit raise {
 }
 
 ///|
-fn main {
+async fn main {
   let args = @env.args()
   if args[:] is [_, "--help" | "-h"] {
     println(USAGE)

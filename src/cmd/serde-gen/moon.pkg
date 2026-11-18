@@ -1,5 +1,7 @@
 import {
+  "totto2727/admiral",
   "totto2727/serde/codegen",
+  "moonbitlang/async",
   "moonbitlang/core/env",
   "moonbitlang/x/fs",
   "moonbitlang/x/path",

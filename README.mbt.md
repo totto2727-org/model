@@ -45,7 +45,7 @@ fn main {
 
 Use MoonBit `0.1.20261117` or a compatible toolchain with `moon.mod`, `moon.pkg`, and `dev_build`. The generator is a native executable. The generated codecs can run on other targets.
 
-1. Clone this repository next to your module. From the Serde checkout, run `moon install ./src/cmd/serde-gen`. Make sure the install directory, `~/.moon/bin` by default, is on your `PATH`.
+1. Clone this repository next to your module. From the Serde checkout, run `nix profile install .#serde-gen`. Make sure your Nix profile's `bin` directory is on `PATH`. To try the command without installing it, run `nix run .#serde-gen -- --help`.
 2. In the parent directory, add both modules to `moon.work`. Use the actual directory names:
 
    ```mbt nocheck

@@ -1,6 +1,6 @@
-/_build/
-/.moon/
-/.mooncakes/
+_build/
+.moon/
+.mooncakes/
 /.direnv/
 /.omo/
 /trace.json
@@ -9,4 +9,4 @@
 /tmp/
 /.archify/
 *.generated.mbt
-/src/codegen/pkg.generated.mbti
+pkg.generated.mbti

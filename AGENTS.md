@@ -10,7 +10,7 @@ Keep the template's CI triggers and shared action references unless a project re
 
 - `src/`: runtime helpers called by generated JSON implementations.
 - `src/codegen/`: attribute validation and source generation from the official MoonBit AST.
-- `src/cmd/serde-gen/`: native command that reads MoonBit source and writes a codec file.
+- `src/cmd/serde-gen/`: native Admiral command that reads MoonBit source and writes a codec file. It is a separate Moon module so users of the codec library do not need Admiral. `package.nix` builds it from checksum-pinned Mooncakes archives and applies toolchain compatibility patches without changing the local registry cache.
 - `src/test/roundtrip/`: build rule and tests that compile and run the generated code.
 
 ## Validation
@@ -25,4 +25,4 @@ moon test --target js
 
 After changing the generator, re-enter the Nix shell to use the rebuilt executable. Remove `src/test/roundtrip/fixture_serde.generated.mbt` before testing generator changes so Moon runs the rule again. The test package's `dev_build` rule must not run a nested `moon` command while the build is active.
 
-Run `moon fmt` after editing MoonBit code and `moon info` after changing public signatures. Do not commit the generated codegen interface or integration fixtures. To change a wire-format behavior, update the generator and check it through a compiled fixture, not just through a source snapshot.
+Run `moon fmt` after editing MoonBit code and `(cd src/cmd/serde-gen && moon fmt)` after editing the CLI. Run `moon info` to inspect public signatures locally. Do not commit generated package interfaces or integration fixtures. To change a wire-format behavior, update the generator and check it through a compiled fixture, not just through a source snapshot.
