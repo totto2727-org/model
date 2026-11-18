@@ -1,0 +1,167 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "totto2727/serde/test/roundtrip"
+
+import {
+  "moonbitlang/core/debug",
+  "moonbitlang/core/json",
+}
+
+// Values
+
+// Errors
+
+// Types and methods
+#derive(Eq, @debug.Debug)
+pub(all) enum Adjacent {
+  Idle
+  Value(Int32)
+  Pair(String, Int32)
+  Named(value~ : Int32)
+  Maybe(String?)
+}
+pub impl @json.FromJson for Adjacent
+pub impl @json.ToJson for Adjacent
+
+#derive(Eq, @debug.Debug)
+pub(all) struct CamelRecord {
+  first_name : String
+  last_name : String
+}
+pub impl @json.FromJson for CamelRecord
+pub impl @json.ToJson for CamelRecord
+
+pub enum DecodeOnlyEvent {
+  Done
+  Data(DecodeOnlyRecord)
+  Named(text~ : String)
+}
+pub impl @json.FromJson for DecodeOnlyEvent
+
+#derive(@json.ToJson)
+pub struct DecodeOnlyRecord {
+  count : Int32
+}
+pub impl @json.FromJson for DecodeOnlyRecord
+
+#derive(Default)
+pub struct DefaultOnly(Int32)
+
+pub struct Distance(Int32)
+pub impl @json.FromJson for Distance
+pub impl @json.ToJson for Distance
+
+#derive(Eq, @debug.Debug)
+pub(all) struct Envelope {
+  records : Array[StrictRecord]
+  event : External?
+  nested : String??
+}
+pub impl @json.FromJson for Envelope
+pub impl @json.ToJson for Envelope
+
+#derive(Eq, @debug.Debug)
+pub(all) enum External {
+  Idle
+  NewValue(Int32)
+  Pair(String, Int32)
+  Named(label~ : String, child~ : StrictRecord)
+  Special
+  Maybe(String?)
+}
+pub impl @json.FromJson for External
+pub impl @json.ToJson for External
+
+pub struct FixedPath {
+  status : String
+  count : Int32
+  note : String?
+  extra : String?
+  escaped : String?
+  label : String
+}
+pub impl @json.FromJson for FixedPath
+pub impl @json.ToJson for FixedPath
+
+pub enum GenericAdjacent[T, U] {
+  Empty
+  Positional(T)
+  Named(value~ : U)
+}
+pub impl[T : @json.FromJson, U : @json.FromJson] @json.FromJson for GenericAdjacent[T, U]
+pub impl[T : @json.ToJson, U : @json.ToJson] @json.ToJson for GenericAdjacent[T, U]
+
+pub struct GenericBox[T](T)
+pub impl[T : @json.FromJson] @json.FromJson for GenericBox[T]
+pub impl[T : @json.ToJson] @json.ToJson for GenericBox[T]
+
+pub struct GenericPair[T, U](GenericBox[T], U?)
+pub impl[T : @json.FromJson, U : @json.FromJson] @json.FromJson for GenericPair[T, U]
+pub impl[T : @json.ToJson, U : @json.ToJson] @json.ToJson for GenericPair[T, U]
+
+pub struct GenericRecord[T, U] {
+  items : Array[T]
+  fallback : U
+}
+pub impl[T : @json.FromJson, U : @json.FromJson + Default] @json.FromJson for GenericRecord[T, U]
+pub impl[T : @json.ToJson, U : @json.ToJson] @json.ToJson for GenericRecord[T, U]
+
+pub enum GenericUntagged[T] {
+  Scalar(T)
+  Batch(items~ : Array[T])
+}
+pub impl[T : @json.FromJson] @json.FromJson for GenericUntagged[T]
+pub impl[T : @json.ToJson] @json.ToJson for GenericUntagged[T]
+
+#derive(Eq, @debug.Debug)
+pub(all) enum Internal {
+  Idle
+  Named(value~ : Int32, note~ : String?)
+}
+pub impl @json.FromJson for Internal
+pub impl @json.ToJson for Internal
+
+pub struct Measurement(Distance, String?)
+pub impl @json.FromJson for Measurement
+pub impl @json.ToJson for Measurement
+
+pub struct ReadOnlyBox[T](T)
+pub impl[T : @json.FromJson] @json.FromJson for ReadOnlyBox[T]
+
+#derive(Eq, @debug.Debug)
+pub(all) struct Record {
+  required : Int32
+  optional : String?
+  count : Int32
+  name : String
+  transient : Int32
+  omitted : Int32?
+}
+pub impl @json.FromJson for Record
+pub impl @json.ToJson for Record
+
+#derive(Eq, @debug.Debug)
+pub(all) struct StrictRecord {
+  value : Int32
+}
+pub impl @json.FromJson for StrictRecord
+pub impl @json.ToJson for StrictRecord
+
+#derive(Eq, @debug.Debug)
+pub(all) enum Untagged {
+  Integer(Int32)
+  Text(String)
+  Named(value~ : Int32)
+}
+pub impl @json.FromJson for Untagged
+pub impl @json.ToJson for Untagged
+
+pub struct WithSkipped[T, U] {
+  value : T
+  hidden : U
+}
+pub impl[T : @json.FromJson, U : Default] @json.FromJson for WithSkipped[T, U]
+pub impl[T : @json.ToJson, U] @json.ToJson for WithSkipped[T, U]
+
+// Type aliases
+
+// Traits

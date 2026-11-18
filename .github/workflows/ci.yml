@@ -23,6 +23,14 @@ jobs:
       - uses: totto2727-org/monorepo/.github/actions/setup-moonbit@main
         with:
           dev-shell: ci
+      - name: Install native serde-gen
+        shell: bash
+        run: |
+          nix develop .#ci --command moon install ./src/cmd/serde-gen --bin "$RUNNER_TEMP/serde-bin"
+          test -x "$RUNNER_TEMP/serde-bin/serde-gen"
+          echo "$RUNNER_TEMP/serde-bin" >> "$GITHUB_PATH"
+      - name: Test the generator CLI
+        run: sh src/cmd/serde-gen/cli_test.sh
       - uses: totto2727-org/monorepo/.github/actions/check-moonbit@main
         with:
           dev-shell: ci

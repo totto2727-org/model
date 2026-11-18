@@ -1,0 +1,43 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "totto2727/serde"
+
+import {
+  "moonbitlang/core/json",
+}
+
+// Values
+pub fn deny_unknown(Map[String, @json.Json], Array[String], @json.DecodeContext) -> Unit raise @json.JsonDecodeError
+
+pub fn deny_unknown_paths(Map[String, @json.Json], Array[Array[String]], @json.DecodeContext) -> Unit raise @json.JsonDecodeError
+
+pub fn discriminator(Map[String, @json.Json], String, @json.DecodeContext) -> String raise @json.JsonDecodeError
+
+pub fn external(@json.Json, @json.DecodeContext) -> (String, @json.Json?) raise @json.JsonDecodeError
+
+pub fn field(Map[String, @json.Json], String, Array[String], @json.DecodeContext) -> @json.Json? raise @json.JsonDecodeError
+
+pub fn[T] invalid(@json.DecodeContext, String) -> T raise @json.JsonDecodeError
+
+pub fn[T] missing_field(@json.DecodeContext, String) -> T raise @json.JsonDecodeError
+
+pub fn object(@json.Json, @json.DecodeContext) -> Map[String, @json.Json] raise @json.JsonDecodeError
+
+pub fn payload(@json.Json?, @json.DecodeContext) -> @json.Json raise @json.JsonDecodeError
+
+pub fn read_path(Map[String, @json.Json], Array[String], @json.DecodeContext) -> (@json.Json?, @json.DecodeContext, String) raise @json.JsonDecodeError
+
+pub fn tuple(@json.Json, Int32, @json.DecodeContext) -> Array[@json.Json] raise @json.JsonDecodeError
+
+pub fn unit(@json.Json?, @json.DecodeContext) -> Unit raise @json.JsonDecodeError
+
+pub fn[T] untagged(@json.Json, @json.DecodeContext, Array[(String, (@json.Json, @json.DecodeContext) -> T raise @json.JsonDecodeError)]) -> T raise @json.JsonDecodeError
+
+pub fn write_path(Map[String, @json.Json], Array[String], @json.Json) -> Unit
+
+// Errors
+
+// Types and methods
+
+// Type aliases
+
+// Traits

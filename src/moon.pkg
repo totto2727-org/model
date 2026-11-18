@@ -1,1 +1,3 @@
-pkgtype(kind: "executable")
+import {
+  "moonbitlang/core/json",
+}
