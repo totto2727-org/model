@@ -19,16 +19,6 @@ let
     };
     registry = toString moonRegistryIndex;
   };
-  # Remove each patch when the corresponding Mooncakes release builds on our SDK.
-  compatibility = {
-    "totto2727/admiral@0.6.5" = ./patches/admiral.patch;
-    "totto2727/lens@0.4.3" = ./patches/lens.patch;
-    "mizchi/tui@0.10.2" = ./patches/tui.patch;
-  };
-  compatibleModules = lib.mapAttrsToList (key: patch: {
-    module = resolution.modules.${key};
-    inherit patch;
-  }) compatibility;
   archiveOf =
     module:
     pkgs.fetchurl {
@@ -38,18 +28,6 @@ let
   cacheModule =
     module:
     ''install -Dm644 ${archiveOf module} "$MOON_HOME/registry/cache/${module.name}/${module.version}.zip"'';
-  patchModule = { module, patch }: ''
-    mkdir -p "deps/${module.name}"
-    unzip -q ${archiveOf module} -d "deps/${module.name}"
-    patch --batch --fuzz=0 -p1 -d deps < ${patch}
-  '';
-  workspace = builtins.toJSON (
-    [
-      "."
-      "src/cmd/serde-gen"
-    ]
-    ++ map (item: "deps/${item.module.name}") compatibleModules
-  );
 in
 pkgs.stdenv.mkDerivation {
   pname = "serde-gen";
@@ -62,10 +40,7 @@ pkgs.stdenv.mkDerivation {
       ./src
     ];
   };
-  nativeBuildInputs = [
-    toolchain
-    pkgs.unzip
-  ];
+  nativeBuildInputs = [ toolchain ];
   # Let Moon parse package manifests, including conditional imports (#cfg).
   buildPhase = ''
     runHook preBuild
@@ -74,8 +49,7 @@ pkgs.stdenv.mkDerivation {
     mkdir -p "$MOON_HOME/registry"
     cp -r ${moonRegistryIndex} "$MOON_HOME/registry/index"
     ${lib.concatMapStringsSep "\n" cacheModule (builtins.attrValues resolution.modules)}
-    ${lib.concatMapStringsSep "\n" patchModule compatibleModules}
-    printf '%s\n' 'members = ${workspace}' > moon.work
+    printf '%s\n' 'members = [".", "src/cmd/serde-gen"]' > moon.work
     moon build --target native --release ./src/cmd/serde-gen
     runHook postBuild
   '';

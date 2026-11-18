@@ -10,7 +10,7 @@ Keep the template's CI triggers and shared action references unless a project re
 
 - `src/`: runtime helpers called by generated JSON implementations.
 - `src/codegen/`: attribute validation and source generation from the official MoonBit AST.
-- `src/cmd/serde-gen/`: native Admiral command that reads MoonBit source and writes a codec file. It is a separate Moon module so users of the codec library do not need Admiral. `package.nix` builds it from checksum-pinned Mooncakes archives and applies toolchain compatibility patches without changing the local registry cache.
+- `src/cmd/serde-gen/`: native Admiral command that reads MoonBit source and writes a codec file. It is a separate Moon module so users of the codec library do not need Admiral. `package.nix` builds it from checksum-pinned Mooncakes archives without changing the local registry cache.
 - `src/test/roundtrip/`: build rule and tests that compile and run the generated code.
 
 ## Validation
