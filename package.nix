@@ -4,6 +4,7 @@
   moonNix,
   toolchain,
   moonRegistryIndex,
+  admiralSrc,
 }:
 let
   builders = moonNix.lib.mkMoonNix { inherit pkgs toolchain; };
@@ -11,7 +12,10 @@ let
 in
 (builders.buildNativeCli {
   src = ./src/cmd/serde-gen;
-  localSources = [ ./. ];
+  localSources = [
+    ./.
+    admiralSrc
+  ];
   registry = moonRegistryIndex.outPath;
 }).overrideAttrs
   (previous: {

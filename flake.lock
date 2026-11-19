@@ -1,5 +1,22 @@
 {
   "nodes": {
+    "admiral": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1795108317,
+        "narHash": "sha256-qy2wFxa3swqWg1mdkqa7qCv+k6RpXBDGK4SOcqAD6bQ=",
+        "owner": "totto2727-org",
+        "repo": "admiral",
+        "rev": "d4441fe9360acc24f59f3eb0c2a7ade859d1d498",
+        "type": "github"
+      },
+      "original": {
+        "owner": "totto2727-org",
+        "repo": "admiral",
+        "rev": "d4441fe9360acc24f59f3eb0c2a7ade859d1d498",
+        "type": "github"
+      }
+    },
     "moon-nix": {
       "inputs": {
         "moonbit-overlay": [
@@ -77,6 +94,7 @@
     },
     "root": {
       "inputs": {
+        "admiral": "admiral",
         "moon-nix": "moon-nix",
         "moon-registry": "moon-registry",
         "moonbit-overlay": "moonbit-overlay",
