@@ -4,16 +4,24 @@
   moonNix,
   toolchain,
   moonRegistryIndex,
+  admiralSrc,
 }:
 let
   builders = moonNix.lib.mkMoonNix { inherit pkgs toolchain; };
   project = builders.parseManifest "module" (builtins.readFile ./moon.mod);
   cli = builders.parseManifest "module" (builtins.readFile ./src/cmd/serde-gen/moon.mod);
+  admiral = builders.parseManifest "module" (builtins.readFile "${admiralSrc}/moon.mod");
   resolution = builders.resolveDependencies {
     root = cli;
-    localModules.${project.name} = {
-      raw = project;
-      key = project.name;
+    localModules = {
+      ${project.name} = {
+        raw = project;
+        key = project.name;
+      };
+      ${admiral.name} = {
+        raw = admiral;
+        key = admiral.name;
+      };
     };
     registry = moonRegistryIndex.outPath;
   };
@@ -47,7 +55,9 @@ pkgs.stdenv.mkDerivation {
     mkdir -p "$MOON_HOME/registry"
     cp -r ${moonRegistryIndex} "$MOON_HOME/registry/index"
     ${lib.concatMapStringsSep "\n" cacheModule (builtins.attrValues resolution.modules)}
-    printf '%s\n' 'members = [".", "src/cmd/serde-gen"]' > moon.work
+    mkdir -p build-deps/admiral
+    cp -r ${admiralSrc}/moon.mod ${admiralSrc}/src build-deps/admiral/
+    printf '%s\n' 'members = [".", "src/cmd/serde-gen", "build-deps/admiral"]' > moon.work
     moon build --target native --release ./src/cmd/serde-gen
     runHook postBuild
   '';
