@@ -56,12 +56,6 @@ moon add totto2727/serde
 
 ### Run without installing
 
-```sh
-nix run github:totto2727-org/serde -- --help
-```
-
-### Run with `moonx`
-
 After a release of `totto2727/serde-gen` with a Wasm executable is available on Mooncakes, use `moonx` to run it without Nix:
 
 ```sh
@@ -71,6 +65,12 @@ moonx totto2727/serde-gen --package src
 ```
 
 If you use a `moonx` sandbox policy, grant read access to the input files and write access to the output directory.
+
+To run the native executable with Nix:
+
+```sh
+nix run github:totto2727-org/serde -- --help
+```
 
 ### Install
 

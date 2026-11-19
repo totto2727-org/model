@@ -89,13 +89,26 @@ fn generate(sources : Array[(String, String)], output : String) -> Unit raise {
 }
 
 ///|
+#cfg(target="js")
+fn command_arguments() -> ArrayView[String] {
+  // Node's argv includes both the executable and the script path.
+  @env.args()[2:]
+}
+
+///|
+#cfg(not(target="js"))
+fn command_arguments() -> ArrayView[String] {
+  @env.args()[1:]
+}
+
+///|
 async fn main {
-  let args = @env.args()
-  if args[:] is [_, "--help" | "-h"] {
+  let args = command_arguments()
+  if args is ["--help" | "-h"] {
     println(USAGE)
     return
   }
-  run(args[1:]) catch {
+  run(args) catch {
     Usage => {
       eprintln(USAGE)
       @sys.exit(2)
