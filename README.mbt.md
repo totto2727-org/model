@@ -3,6 +3,8 @@
 Serde generates JSON encoders and decoders for MoonBit types.
 Add `#custom.serde` to a type to control how it reads and writes JSON.
 
+For application rules that run after decoding, see [Validate a decoded value](docs/validation.md).
+
 ## Usage
 
 After [setup](#setup), put this code in `src/models.mbt`:
