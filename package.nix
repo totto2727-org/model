@@ -9,15 +9,13 @@ let
   builders = moonNix.lib.mkMoonNix { inherit pkgs toolchain; };
   project = builders.parseManifest "module" (builtins.readFile ./moon.mod);
   cli = builders.parseManifest "module" (builtins.readFile ./src/cmd/serde-gen/moon.mod);
-  manifest = import "${moonNix}/lib/pure/manifest.nix" { inherit lib; };
-  resolver = import "${moonNix}/lib/pure/resolve.nix" { inherit lib manifest; };
-  resolution = resolver.resolve {
+  resolution = builders.resolveDependencies {
     root = cli;
     localModules.${project.name} = {
       raw = project;
       key = project.name;
     };
-    registry = toString moonRegistryIndex;
+    registry = moonRegistryIndex.outPath;
   };
   archiveOf =
     module:
