@@ -1,0 +1,16 @@
+import {
+  "totto2727/serde",
+  "moonbitlang/core/json",
+}
+
+import {
+  "moonbitlang/core/test",
+} for "test"
+
+rule(name: "serde", command: "serde-gen $input --output $output")
+
+dev_build(
+  rule: "serde",
+  input: "fixture.mbt",
+  output: "fixture_serde.generated.mbt",
+)
