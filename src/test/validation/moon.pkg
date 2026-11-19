@@ -1,0 +1,21 @@
+import {
+  "moonbitlang/core/json",
+  "totto2727/serde",
+  "totto2727/serde/garde",
+}
+
+rule(name: "serde", command: "serde-gen $input --output $output")
+
+rule(name: "garde", command: "serde-gen --validate $input --output $output")
+
+dev_build(
+  rule: "serde",
+  input: "models.mbt",
+  output: "models.serde.generated.mbt",
+)
+
+dev_build(
+  rule: "garde",
+  input: "models.mbt",
+  output: "models.garde.generated.mbt",
+)

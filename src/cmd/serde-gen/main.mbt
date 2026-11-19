@@ -6,8 +6,8 @@ const OUTPUT_OPTION = "output"
 
 ///|
 const USAGE =
-  #|Usage: serde-gen INPUT... --output OUTPUT
-  #|       serde-gen --package DIR
+  #|Usage: serde-gen [--validate] INPUT... --output OUTPUT
+  #|       serde-gen [--validate] --package DIR
 
 ///|
 priv suberror CliError {
@@ -23,7 +23,13 @@ priv enum GenerateOptions {
 }
 
 ///|
-async fn run(args : ArrayView[String]) -> Unit {
+priv enum Mode {
+  JsonCodecs
+  Validation
+}
+
+///|
+async fn run(args : ArrayView[String], mode : Mode) -> Unit {
   // Preserve the existing grammar and usage status before core argparse can exit.
   let package_flag = "--" + PACKAGE_OPTION
   let output_flag = "--" + OUTPUT_OPTION
@@ -52,8 +58,8 @@ async fn run(args : ArrayView[String]) -> Unit {
         None => Files(ctx.get_strings(inputs), ctx.get_string_required(output))
       }
       match options {
-        Package(directory) => generate_package(directory)
-        Files(inputs, output) => generate_files(inputs, output)
+        Package(directory) => generate_package(directory, mode)
+        Files(inputs, output) => generate_files(inputs, output, mode)
       }
     }),
   )
@@ -64,23 +70,32 @@ async fn run(args : ArrayView[String]) -> Unit {
 fn generate_files(
   inputs : ReadOnlyArray[String],
   output : String,
+  mode : Mode,
 ) -> Unit raise {
   let sources : Array[(String, String)] = []
   for input in inputs {
     sources.push((input, @fs.read_file_to_string(input)))
   }
-  generate(sources, output)
+  generate(sources, output, mode)
 }
 
 ///|
-fn generate(sources : Array[(String, String)], output : String) -> Unit raise {
-  let generated = @codegen.generate_many(sources)
+fn generate(
+  sources : Array[(String, String)],
+  output : String,
+  mode : Mode,
+) -> Unit raise {
+  let (header, generated) = match mode {
+    JsonCodecs => (@codegen.GENERATED_HEADER, @codegen.generate_many(sources))
+    Validation =>
+      (@garde_codegen.GENERATED_HEADER, @garde_codegen.generate_many(sources))
+  }
   if @fs.path_exists(output) {
     let previous = @fs.read_file_to_string(output)
     if previous == generated {
       return
     }
-    if !previous.has_prefix(@codegen.GENERATED_HEADER + "\n") ||
+    if !previous.has_prefix(header + "\n") ||
       sources.any(fn(source) { source.1 == previous }) {
       raise RefuseOverwrite(output)
     }
@@ -108,7 +123,11 @@ async fn main {
     println(USAGE)
     return
   }
-  run(args) catch {
+  let (mode, args) = match args {
+    ["--validate", .. rest] => (Validation, rest)
+    _ => (JsonCodecs, args)
+  }
+  run(args, mode) catch {
     Usage => {
       eprintln(USAGE)
       @sys.exit(2)
@@ -121,7 +140,9 @@ async fn main {
       eprintln("serde-gen: \{path}: expected a MoonBit package with moon.pkg")
       @sys.exit(1)
     }
-    @codegen.GenerateError(message) | @fs.IOError(message) => {
+    @codegen.GenerateError(message)
+    | @garde_codegen.GenerateError(message)
+    | @fs.IOError(message) => {
       eprintln("serde-gen: \{message}")
       @sys.exit(1)
     }

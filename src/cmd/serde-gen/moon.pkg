@@ -1,6 +1,7 @@
 import {
   "totto2727/admiral",
   "totto2727/serde/codegen",
+  "totto2727/serde/garde_codegen",
   "moonbitlang/async",
   "moonbitlang/core/env",
   "moonbitlang/x/fs",

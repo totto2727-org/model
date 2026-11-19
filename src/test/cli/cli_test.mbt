@@ -13,9 +13,34 @@ async fn model(dir : String, file : String, name : String) -> Unit {
 async test "serde-gen - usage goes to stdout for help and stderr for bad arguments" {
   let dir = @fs.tmpdir(prefix="serde-gen-test")
   defer @fs.rmdir(dir, recursive=true)
-  let usage = "Usage: serde-gen INPUT... --output OUTPUT\n       serde-gen --package DIR\n"
+  let usage = "Usage: serde-gen [--validate] INPUT... --output OUTPUT\n       serde-gen [--validate] --package DIR\n"
   assert_eq(cli(dir, ["--help"]), (0, usage, ""))
   assert_eq(cli(dir, ["first.mbt"]), (2, "", usage))
+}
+
+///|
+async test "serde-gen --validate has independent package output and overwrite protection" {
+  let dir = @fs.tmpdir(prefix="serde-gen-test")
+  defer @fs.rmdir(dir, recursive=true)
+  @fs.write_file("\{dir}/moon.pkg", "")
+  @fs.write_file(
+    "\{dir}/models.mbt",
+    "#custom.serde\n#custom.garde\nstruct Both {\n  #custom.garde(range(min=\"0\"))\n  value : Int\n}\n",
+  )
+  assert_eq(cli(dir, ["--package", "."]), (0, "", ""))
+  let codecs = @fs.read_file("\{dir}/serde.generated.mbt").text()
+  assert_eq(cli(dir, ["--validate", "--package", "."]), (0, "", ""))
+  let validation = @fs.read_file("\{dir}/garde.generated.mbt").text()
+  assert_true(codecs.contains("impl ToJson for Both"))
+  assert_false(codecs.contains("@garde.Validate"))
+  assert_true(validation.contains("impl @garde.Validate for Both"))
+  assert_false(validation.contains("ToJson"))
+  let (status, _, err) = cli(dir, [
+    "--validate", "models.mbt", "--output", "serde.generated.mbt",
+  ])
+  assert_eq(status, 1)
+  assert_true(err.contains("refusing to overwrite"), msg=err)
+  assert_eq(@fs.read_file("\{dir}/serde.generated.mbt").text(), codecs)
 }
 
 ///|
