@@ -7,6 +7,7 @@ For installation and a complete example, see the [README](../README.md).
 Serde generates `ToJson` and `@json.FromJson` implementations for record structs, newtypes, tuple structs, and enums.
 Do not derive the same trait on a type that uses `#custom.serde`.
 Use `#custom.serde(decode_only)` to generate only `@json.FromJson`.
+Use `#custom.serde(encode_only)` to generate only `ToJson`.
 
 For a generic type, Serde generates the JSON trait bounds for the type parameters used in each direction.
 A non-optional field with `default` or `skip` can also add a `Default` bound.
@@ -75,7 +76,7 @@ A tuple struct with two or more elements encodes as a fixed-length JSON array in
 For example, `struct Measurement(Distance, String?)` reads and writes `[12,"m"]` or `[12,null]`.
 An optional element requires an array slot with `null` for `None`.
 
-Tuple structs accept `decode_only`, but do not accept arguments for named fields or enum tags.
+Tuple structs accept `decode_only` and `encode_only`, but do not accept arguments for named fields or enum tags.
 
 ### Enums
 

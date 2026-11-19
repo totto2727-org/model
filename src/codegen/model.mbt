@@ -22,6 +22,7 @@ pub(all) struct RecordDef {
   fields : Array[Field]
   deny_unknown_fields : Bool
   decode_only : Bool
+  encode_only : Bool
   is_private : Bool
 }
 
@@ -31,6 +32,7 @@ pub(all) struct TupleDef {
   params : Array[String]
   elements : Array[@syntax.Type]
   decode_only : Bool
+  encode_only : Bool
   is_private : Bool
 }
 
@@ -41,6 +43,7 @@ pub(all) struct EnumDef {
   variants : Array[Variant]
   repr : Representation
   decode_only : Bool
+  encode_only : Bool
   is_private : Bool
 }
 
