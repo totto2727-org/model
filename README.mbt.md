@@ -58,9 +58,6 @@ moon add totto2727/serde
 
 ```sh
 moonx totto2727/serde-gen --help
-```
-
-```sh
 nix run github:totto2727-org/serde -- --help
 ```
 
