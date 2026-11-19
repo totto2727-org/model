@@ -27,17 +27,17 @@
         ]
       },
       "locked": {
-        "lastModified": 1795111222,
-        "narHash": "sha256-KDIUcXkk8900aREaiY9FAgTrPQvglqY3Q4lgaXKQvpo=",
+        "lastModified": 1795112658,
+        "narHash": "sha256-AX6qY8B/Wnc6M6Eb7PVZeJrCSl/vmX+z+jLPRbYkkvw=",
         "owner": "totto2727-org",
         "repo": "moon-nix",
-        "rev": "36df10451b6bbe578b96d719897572ed7aa1c251",
+        "rev": "9cfcb8ff5889a694d15070c7788132b44e035e53",
         "type": "github"
       },
       "original": {
         "owner": "totto2727-org",
         "repo": "moon-nix",
-        "rev": "36df10451b6bbe578b96d719897572ed7aa1c251",
+        "rev": "9cfcb8ff5889a694d15070c7788132b44e035e53",
         "type": "github"
       }
     },

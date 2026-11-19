@@ -8,7 +8,7 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
     moon-nix = {
-      url = "github:totto2727-org/moon-nix/36df10451b6bbe578b96d719897572ed7aa1c251";
+      url = "github:totto2727-org/moon-nix/9cfcb8ff5889a694d15070c7788132b44e035e53";
       inputs.nixpkgs.follows = "nixpkgs";
       inputs.moonbit-overlay.follows = "moonbit-overlay";
     };

@@ -10,7 +10,7 @@ let
   builders = moonNix.lib.mkMoonNix { inherit pkgs toolchain; };
   project = builders.parseManifest "module" (builtins.readFile ./moon.mod);
 in
-(builders.buildNativeCli {
+(builders.buildNative {
   src = ./src/cmd/serde-gen;
   localSources = [
     ./.
