@@ -57,6 +57,7 @@ moon add totto2727/serde
 ### Run without installing
 
 ```sh
+moonx totto2727/serde-gen --help
 nix run github:totto2727-org/serde -- --help
 ```
 
@@ -98,7 +99,7 @@ Set `system` to `aarch64-darwin` or `x86_64-linux`.
 
 ### Generate code before a build
 
-For the [usage example](#usage), add these imports and the [build rule](https://docs.moonbitlang.com/en/latest/toolchain/moon/package.html#rule-and-dev-build) to `src/moon.pkg`:
+`src/moon.pkg`:
 
 ```mbt nocheck
 import {
@@ -106,13 +107,9 @@ import {
   "totto2727/serde",
 }
 
-rule(name: "serde", command: "serde-gen $input --output $output")
+rule(name: "serde", command: "moonx totto2727/serde-gen $input --output $output")
 dev_build(rule: "serde", input: "models.mbt", output: "models.generated.mbt")
 ```
-
-Run Moon with `serde-gen` on `PATH`.
-If you publish a package that uses this rule, include the generated code.
-Moon does not run build rules for dependencies.
 
 ## API
 

@@ -10,7 +10,7 @@ Keep the template's CI triggers and shared action references unless a project re
 
 - `src/`: runtime helpers called by generated JSON implementations.
 - `src/codegen/`: attribute validation and source generation from the official MoonBit AST.
-- `src/cmd/serde-gen/`: native Admiral command that reads MoonBit source and writes a codec file. It is a separate Moon module so users of the codec library do not need Admiral. `package.nix` builds it from checksum-pinned Mooncakes archives without changing the local registry cache.
+- `src/cmd/serde-gen/`: Admiral command for native, linear Wasm, and JavaScript on Node.js that reads MoonBit source and writes a codec file. It is a separate Moon module so users of the codec library do not need Admiral. `package.nix` uses checksum-pinned Mooncakes archives without changing the local registry cache. Until Admiral 0.7.0 is available in the pinned Mooncakes index, the flake supplies a locked Admiral source as a Moon workspace member.
 - `src/test/roundtrip/`: build rule and tests that compile and run the generated code.
 
 ## Validation
@@ -22,6 +22,8 @@ moon check --deny-warn
 moon test
 moon test --target js
 ```
+
+To build the CLI from source, put the Serde library, `src/cmd/serde-gen`, and the pinned Admiral checkout in a Moon workspace. From the workspace root, run `moon build --target wasm --release ./src/cmd/serde-gen` for linear Wasm or `moon build --target js --release ./src/cmd/serde-gen` for Node.js. These commands assume the workspace root is the Serde checkout. The Nix package remains native.
 
 After changing the generator, re-enter the Nix shell to use the rebuilt executable. Remove `src/test/roundtrip/fixture_serde.generated.mbt` before testing generator changes so Moon runs the rule again. The test package's `dev_build` rule must not run a nested `moon` command while the build is active.
 

@@ -116,7 +116,7 @@ Usage: serde-gen INPUT... --output OUTPUT
 
 All explicit inputs and the output must be in the same MoonBit package.
 The generator does not overwrite a hand-written file or rewrite an output file that has not changed.
-After a generator update, run `serde-gen` again or delete the generated file to make Moon run the build rule again.
+After a generator update, run the generator again to refresh the generated file.
 
 | Exit status | Meaning |
 | --- | --- |
@@ -128,11 +128,11 @@ Help goes to standard output. Errors go to standard error.
 
 ### Package mode
 
-Run `serde-gen --package DIR` before Moon, in place of a `dev_build` rule for the same package.
+Run `moonx totto2727/serde-gen --package DIR` before Moon to generate code for the entire package.
 For example:
 
 ```sh
-serde-gen --package src/models && moon check
+moonx totto2727/serde-gen --package src/models && moon check
 ```
 
 Package mode refreshes `serde.generated.mbt` when source files change.
