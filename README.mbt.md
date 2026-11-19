@@ -27,7 +27,8 @@ test "encode a profile without an avatar" {
 }
 ```
 
-Follow [Generate code before a build](#generate-code-before-a-build) to create `src/models.generated.mbt` with `moonx` and run the test.
+Run `moon test src`.
+Moon generates `src/models.generated.mbt` and the test checks the JSON output.
 
 ## Key features
 
@@ -40,7 +41,7 @@ Follow [Generate code before a build](#generate-code-before-a-build) to create `
 ## Prerequisites
 
 - **MoonBit:** Use version `0.1.20261117` or a compatible version.
-- **Nix (optional):** Enable flakes if you want to run the native generator on Apple Silicon macOS or x86-64 Linux.
+- **Nix:** Enable flakes to run the generator on Apple Silicon macOS or x86-64 Linux.
 
 ## Setup
 
@@ -55,17 +56,9 @@ moon add totto2727/serde
 
 ### Run without installing
 
-After a release of `totto2727/serde-gen` with a Wasm executable is available on Mooncakes, use `moonx` to run it without Nix:
-
 ```sh
 moonx totto2727/serde-gen --help
-moonx totto2727/serde-gen src/models.mbt --output src/models.generated.mbt
-moonx totto2727/serde-gen --package src
 ```
-
-If you use a `moonx` sandbox policy, grant read access to the input files and write access to the output directory.
-
-To run the native executable with Nix:
 
 ```sh
 nix run github:totto2727-org/serde -- --help
@@ -109,25 +102,17 @@ Set `system` to `aarch64-darwin` or `x86_64-linux`.
 
 ### Generate code before a build
 
-For the [usage example](#usage), add these imports to `src/moon.pkg`:
+`src/moon.pkg`:
 
 ```mbt nocheck
 import {
   "moonbitlang/core/json",
   "totto2727/serde",
 }
+
+rule(name: "serde", command: "moonx totto2727/serde-gen $input --output $output")
+dev_build(rule: "serde", input: "models.mbt", output: "models.generated.mbt")
 ```
-
-From the module root, generate the code with `moonx` before running `moon test`:
-
-```sh
-moonx totto2727/serde-gen src/models.mbt --output src/models.generated.mbt && moon test src
-```
-
-Run the generation command again when you change `src/models.mbt`.
-For a sandboxed Nix build, run `moonx` before `nix build` and include the generated file in the build source.
-An empty `moonx` cache needs network access to fetch the generator.
-If you publish the package, include the generated file so its users can build without running the generator.
 
 ## API
 
