@@ -9,4 +9,6 @@ _build/
 /tmp/
 /.archify/
 *.generated.mbt
+!/src/test/serde/serde.generated.mbt
+!/src/test/validation/serde.generated.mbt
 pkg.generated.mbti

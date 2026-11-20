@@ -3,9 +3,11 @@
 Serde generates JSON encoders and decoders for MoonBit types.
 Add `#custom.serde` to a type to control how it reads and writes JSON.
 
+This project is inspired by Rust's [Serde](https://serde.rs/) for serialization and [garde](https://docs.rs/garde/latest/garde/) for validation.
+
 ## Usage
 
-After [setup](#setup), put this code in `src/models.mbt`:
+After [setup](#setup), put this code in `src/models/profile.mbt`:
 
 ```mbt nocheck
 ///|
@@ -17,7 +19,7 @@ struct Profile {
 }
 ```
 
-Put this test in `src/models_wbtest.mbt`:
+Put this test in `src/models/profile_wbtest.mbt`:
 
 ```mbt nocheck
 ///|
@@ -27,8 +29,14 @@ test "encode a profile without an avatar" {
 }
 ```
 
-Run `moon test src`.
-Moon generates `src/models.generated.mbt` and the test checks the JSON output.
+From the module root, run:
+
+```sh
+serde-gen --package src/models && moon test src/models
+```
+
+The generator writes `src/models/serde.generated.mbt`.
+The test checks that Serde encodes the profile without an avatar field.
 
 ## Key features
 
@@ -37,24 +45,24 @@ Moon generates `src/models.generated.mbt` and the test checks the JSON output.
 - Set JSON field names, aliases, defaults, and nested object paths.
 - Select external, internal, adjacent, or untagged enum representations.
 - Get source locations for generation errors and JSON paths for decoding errors.
+- Run Garde validation separately from JSON decoding.
 
 ## Prerequisites
 
-- **MoonBit:** Use version `0.1.20261117` or a compatible version.
-- **Nix:** Enable flakes to run the generator on Apple Silicon macOS or x86-64 Linux.
+- Use Moon `0.1.20261117` or a compatible version to check the generated code.
+- To use a Nix setup option, enable flakes on Apple Silicon macOS or x86-64 Linux.
 
 ## Setup
 
-> [!NOTE]
-> These instructions apply to the published release. Serde is not yet available on Mooncakes.
-
-From the root of your MoonBit module, add the library:
+From the root of your MoonBit module, add the [published library](https://mooncakes.io/docs/totto2727/serde):
 
 ```sh
 moon add totto2727/serde
 ```
 
 ### Run without installing
+
+Use `moonx` when the CLI is available on Mooncakes, or use Nix:
 
 ```sh
 moonx totto2727/serde-gen --help
@@ -99,29 +107,37 @@ Set `system` to `aarch64-darwin` or `x86_64-linux`.
 
 ### Generate code before a build
 
-`src/moon.pkg`:
+`src/models/moon.pkg`:
 
 ```mbt nocheck
+///|
 import {
   "moonbitlang/core/json",
   "totto2727/serde",
 }
-
-rule(name: "serde", command: "moonx totto2727/serde-gen $input --output $output")
-dev_build(rule: "serde", input: "models.mbt", output: "models.generated.mbt")
 ```
+
+From the module root, run the generator before `moon check`, `moon build`, or `moon test`.
+Pass the package directory, not a list of model files.
+One invocation discovers both `#custom.serde` and `#custom.garde` and writes all generated code to `serde.generated.mbt`.
+Import `totto2727/serde/garde` only if the package uses Garde attributes.
 
 ## API
 
-- [Attribute reference](docs/reference.md#customserde-attributes): Supported types, attributes, and JSON representations.
-- [`serde-gen` reference](docs/reference.md#serde-gen): Inputs, package mode, and exit statuses.
+Use the Mooncakes version selector to read the documentation for the version you installed.
+
+- [Serde API](https://mooncakes.io/docs/totto2727/serde): Runtime helpers used by generated JSON codecs.
+- [Serde attributes](https://mooncakes.io/docs/totto2727/serde/serde-codegen): `#custom.serde` examples and generated codec excerpts.
+- [Garde API and attributes](https://mooncakes.io/docs/totto2727/serde/garde): Validation types, `#custom.garde` examples, and generated validator excerpts. Select a release that includes Garde.
+
+For command-line options, see the [`serde-gen` package README](https://mooncakes.io/docs/totto2727/serde-gen) after the CLI release is available on Mooncakes.
 
 ## Development
 
-For project structure and development commands, see [AGENTS.md](AGENTS.md).
+For repository maintenance instructions, see [AGENTS.md](https://github.com/totto2727-org/serde/blob/main/AGENTS.md).
 
 ## License
 
-[MIT](LICENSE)
+[MIT](https://github.com/totto2727-org/serde/blob/main/LICENSE)
 
 _This README follows the [share-artifact guidance](https://raw.githubusercontent.com/totto2727-org/agent/refs/heads/main/plugins/totto2727-coding/skills/share-artifact/SKILL.md) and [README template](https://raw.githubusercontent.com/totto2727-org/agent/refs/heads/main/plugins/totto2727-coding/skills/share-artifact/readme/template.md)._

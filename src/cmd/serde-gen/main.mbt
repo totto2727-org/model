@@ -6,8 +6,8 @@ const OUTPUT_OPTION = "output"
 
 ///|
 const USAGE =
-  #|Usage: serde-gen INPUT... --output OUTPUT
-  #|       serde-gen --package DIR
+  #|Usage: serde-gen --package DIR
+  #|       serde-gen INPUT... --output OUTPUT
 
 ///|
 priv suberror CliError {
@@ -74,13 +74,20 @@ fn generate_files(
 
 ///|
 fn generate(sources : Array[(String, String)], output : String) -> Unit raise {
-  let generated = @codegen.generate_many(sources)
+  // Filter on the contiguous lexer token. Only the AST confirms an attribute.
+  let codecs = @serde_codegen.generate_many(
+    sources.filter(source => source.1.contains("#custom.serde")),
+  )
+  let validation = @garde_codegen.generate_many(
+    sources.filter(source => source.1.contains("#custom.garde")),
+  )
+  let validation = validation
+    .strip_prefix(@garde_codegen.GENERATED_HEADER + "\n")
+    .unwrap()
+  let generated = codecs + validation.to_owned()
   if @fs.path_exists(output) {
     let previous = @fs.read_file_to_string(output)
-    if previous == generated {
-      return
-    }
-    if !previous.has_prefix(@codegen.GENERATED_HEADER + "\n") ||
+    if !previous.has_prefix(@serde_codegen.GENERATED_HEADER + "\n") ||
       sources.any(fn(source) { source.1 == previous }) {
       raise RefuseOverwrite(output)
     }
@@ -121,7 +128,9 @@ async fn main {
       eprintln("serde-gen: \{path}: expected a MoonBit package with moon.pkg")
       @sys.exit(1)
     }
-    @codegen.GenerateError(message) | @fs.IOError(message) => {
+    @serde_codegen.GenerateError(message)
+    | @garde_codegen.GenerateError(message)
+    | @fs.IOError(message) => {
       eprintln("serde-gen: \{message}")
       @sys.exit(1)
     }

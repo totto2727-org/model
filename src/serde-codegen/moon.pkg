@@ -7,3 +7,7 @@ import {
   "moonbitlang/core/list",
   "moonbitlang/core/debug",
 }
+
+import {
+  "totto2727/serde/serde-codegen" @serde_codegen,
+} for "test"

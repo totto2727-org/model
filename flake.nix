@@ -16,10 +16,6 @@
       url = "git+https://mooncakes.io/git/index";
       flake = false;
     };
-    admiral = {
-      url = "github:totto2727-org/admiral/d4441fe9360acc24f59f3eb0c2a7ade859d1d498";
-      flake = false;
-    };
   };
 
   outputs =
@@ -29,7 +25,6 @@
       moonbit-overlay,
       moon-nix,
       moon-registry,
-      admiral,
       ...
     }:
     let
@@ -48,7 +43,6 @@
       mkGenerator =
         pkgs:
         pkgs.callPackage ./package.nix {
-          admiralSrc = admiral.outPath;
           moonNix = moon-nix;
           toolchain = toolchainFor pkgs;
           moonRegistryIndex = moon-registry;

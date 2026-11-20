@@ -1,22 +1,5 @@
 {
   "nodes": {
-    "admiral": {
-      "flake": false,
-      "locked": {
-        "lastModified": 1795108317,
-        "narHash": "sha256-qy2wFxa3swqWg1mdkqa7qCv+k6RpXBDGK4SOcqAD6bQ=",
-        "owner": "totto2727-org",
-        "repo": "admiral",
-        "rev": "d4441fe9360acc24f59f3eb0c2a7ade859d1d498",
-        "type": "github"
-      },
-      "original": {
-        "owner": "totto2727-org",
-        "repo": "admiral",
-        "rev": "d4441fe9360acc24f59f3eb0c2a7ade859d1d498",
-        "type": "github"
-      }
-    },
     "moon-nix": {
       "inputs": {
         "moonbit-overlay": [
@@ -44,11 +27,11 @@
     "moon-registry": {
       "flake": false,
       "locked": {
-        "lastModified": 1795091058,
-        "narHash": "sha256-GNbdNDGcFuGoUtN+eDhNMHXOh1rsxd0jw/1y+nUxZvs=",
+        "lastModified": 1795175639,
+        "narHash": "sha256-AWe0a/8Pl0+JEKsFl8FpK6JaF+xBjQWZznQlqnis/Gs=",
         "ref": "refs/heads/main",
-        "rev": "bcfd350220e6047500e96bcb9435819795ffd25f",
-        "revCount": 24973,
+        "rev": "821fd3a0d56ac05a3887a4c1939237608a5b3444",
+        "revCount": 25166,
         "type": "git",
         "url": "https://mooncakes.io/git/index"
       },
@@ -94,7 +77,6 @@
     },
     "root": {
       "inputs": {
-        "admiral": "admiral",
         "moon-nix": "moon-nix",
         "moon-registry": "moon-registry",
         "moonbit-overlay": "moonbit-overlay",

@@ -28,11 +28,7 @@ fn generate_package(directory : String) -> Unit raise {
     if common_source(name) {
       let input = in_package(name)
       if @fs.is_file(input) {
-        let source = @fs.read_file_to_string(input)
-        // The lexer requires contiguous `#namespace.name`. Only the AST confirms an attribute.
-        if source.contains("#custom.serde") {
-          sources.push((input, source))
-        }
+        sources.push((input, @fs.read_file_to_string(input)))
       }
     }
   }
