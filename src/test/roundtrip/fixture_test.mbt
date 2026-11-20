@@ -544,3 +544,24 @@ test "generic directional bounds - decode_only and skipped fields do not require
   )
   assert_eq(ToJson::to_json(encoded), { "value": 4 })
 }
+
+///|
+priv struct ToJsonOnly(Int32)
+
+///|
+impl ToJson for ToJsonOnly with fn to_json(self) {
+  let ToJsonOnly(value) = self
+  ToJson::to_json(value)
+}
+
+///|
+test "encode_only supports records, tuples, and enums without FromJson" {
+  let value = ToJsonOnly(42)
+  assert_eq(
+    ToJson::to_json(@roundtrip.WriteOnlyRecord::{ identifier: value, }),
+    { "id": 42 },
+  )
+  assert_eq(ToJson::to_json(@roundtrip.WriteOnlyTuple(value, true)), [42, true])
+  let event : @roundtrip.WriteOnlyEvent[ToJsonOnly] = Value(value)
+  assert_eq(ToJson::to_json(event), { "type": "Value", "data": 42 })
+}

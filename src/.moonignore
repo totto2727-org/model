@@ -1,0 +1,4 @@
+# The integration fixtures require serde-gen during development.
+/test/
+# The CLI is a separate module.
+/cmd/
