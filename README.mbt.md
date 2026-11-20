@@ -4,7 +4,7 @@ Serde generates JSON encoders and decoders for MoonBit types.
 Add `#custom.serde` to a type to control how it reads and writes JSON.
 
 This project is inspired by Rust's [Serde](https://serde.rs/) for serialization and [garde](https://docs.rs/garde/latest/garde/) for validation.
-For application rules that run after decoding, see [Validate a decoded value](docs/validation.md).
+For a walkthrough of validation after decoding, see [Validate a decoded value](https://github.com/totto2727-org/serde/blob/main/docs/validation.md).
 
 ## Usage
 
@@ -48,10 +48,7 @@ The generator discovers annotated files in `src` and writes `src/serde.generated
 
 ## Setup
 
-> [!NOTE]
-> These instructions apply to the published release. Serde is not yet available on Mooncakes.
-
-From the root of your MoonBit module, add the library:
+From the root of your MoonBit module, add the [published library](https://mooncakes.io/docs/totto2727/serde):
 
 ```sh
 moon add totto2727/serde
@@ -60,9 +57,10 @@ moon add totto2727/serde
 ### Run without installing
 
 ```sh
-moonx totto2727/serde-gen --help
 nix run github:totto2727-org/serde -- --help
 ```
+
+If `serde-gen` is available on Mooncakes, you can also run `moonx totto2727/serde-gen --help`.
 
 ### Install
 
@@ -123,8 +121,13 @@ Pass the package directory, not a list of model files.
 
 ## API
 
-- [Attribute reference](docs/reference.md#customserde-attributes): Supported types, attributes, and JSON representations.
-- [`serde-gen` reference](docs/reference.md#serde-gen): Inputs, package mode, and exit statuses.
+Use the Mooncakes version selector to read the documentation for the version you installed.
+
+- [Serde API](https://mooncakes.io/docs/totto2727/serde): Runtime helpers used by generated JSON codecs.
+- [Serde attributes](https://mooncakes.io/docs/totto2727/serde/codegen): `#custom.serde` examples and generated codec excerpts.
+- [Garde API and attributes](https://mooncakes.io/docs/totto2727/serde/garde): Validation types, `#custom.garde` examples, and generated validator excerpts. Select a release that includes Garde.
+
+For command-line options, see the [`serde-gen` reference](https://github.com/totto2727-org/serde/blob/main/docs/reference.md#serde-gen).
 
 ## Development
 

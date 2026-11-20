@@ -2,6 +2,8 @@
 
 The [`garde`](https://docs.rs/garde/latest/garde/) style validator runs on MoonBit values, not JSON. Serde reads the JSON and checks its shape. Call `@garde.validate` separately to check application rules. The same call works on values you construct without Serde.
 
+For the API and generated code examples for each rule, see [Garde on Mooncakes](https://mooncakes.io/docs/totto2727/serde/garde) in a release that includes Garde.
+
 ## Add validation to a model
 
 Use `#custom.garde` on a type and mark the fields that need validation. Use `#custom.serde` independently when the same type also needs JSON codecs.

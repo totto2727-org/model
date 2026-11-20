@@ -1,6 +1,7 @@
 # Serde reference
 
 For installation and a complete example, see the [README](../README.md).
+For examples of generated code for each attribute, see [Serde attributes on Mooncakes](https://mooncakes.io/docs/totto2727/serde/codegen) in the release that includes the examples.
 
 ## `#custom.serde` attributes
 
