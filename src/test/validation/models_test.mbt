@@ -66,3 +66,77 @@ test "nested inner validation works without a JSON codec" {
   ]
   assert_eq(paths, ["batches[0][1]", "batches[1][0]"])
 }
+
+///|
+fn[T : @garde.Validate] invalid_paths(value : T) -> Array[String] raise {
+  guard @garde.validate(value) is Err(report) else {
+    fail("expected a validation error")
+  }
+  [
+    for issue in report.violations() => Show::to_string(issue.path)
+  ]
+}
+
+///|
+test "generic record and tuple/newtype validation preserve nested paths" {
+  let batch : @validation.Batch[@validation.Pair, Bool] = @json.from_json({
+    "items": [["Å!", null]],
+    "metadata": false,
+  })
+  assert_eq(invalid_paths(batch), [
+    "items[0][0][0]", "items[0][0][0]", "items[0][0][0]", "items[0][1]",
+  ])
+  let valid : @validation.Pair = @json.from_json(["ABC123", "ok"])
+  assert_true(@garde.validate(valid) is Ok(_))
+  let sized : @validation.NestedSized[Array[Int32]] = @validation.NestedSized(
+    @validation.Sized([1]),
+  )
+  assert_eq(invalid_paths(sized), ["[0][0]"])
+  let measured = @validation.Measured(@validation.Code("B"))
+  assert_eq(invalid_paths(measured), ["[0]", "[0][0]"])
+}
+
+///|
+test "generic enum validates only its active payload using MoonBit names" {
+  let positional : @validation.Entry[@validation.Code] = @json.from_json({
+    "kind": "code_entry",
+    "data": ["B", 7],
+  })
+  assert_eq(invalid_paths(positional), ["CodeEntry[0][0]"])
+  let named : @validation.Entry[@validation.Code] = @json.from_json({
+    "kind": "named",
+    "data": { "label": "plain" },
+  })
+  assert_eq(invalid_paths(named), ["Named.label", "Named.label"])
+  let works : @validation.Entry[@validation.Code] = @json.from_json({
+    "kind": "named",
+    "data": { "label": "say \"hi\"!" },
+  })
+  let empty : @validation.Entry[@validation.Code] = @json.from_json({
+    "kind": "empty",
+  })
+  let skipped : @validation.Entry[@validation.Code] = @json.from_json({
+    "kind": "unchecked",
+    "data": "",
+  })
+  assert_true(@garde.validate(works) is Ok(_))
+  assert_true(@garde.validate(empty) is Ok(_))
+  assert_true(@garde.validate(skipped) is Ok(_))
+}
+
+///|
+test "same decoded value validates independently with two typed policies" {
+  let request : @validation.Request = @json.from_json({
+    "allocations": [{ "count": 3 }, { "count": 8 }],
+  })
+  assert_true(request.validate_with({ max_count: 9, }) is Ok(_))
+  guard request.validate_with({ max_count: 5, }) is Err(report) else {
+    fail("expected a quota violation")
+  }
+  assert_eq(report.violations().length(), 1)
+  assert_eq(
+    Show::to_string(report.violations()[0].path),
+    "allocations[1].count",
+  )
+  assert_eq(report.violations()[0].message, "exceeds quota")
+}

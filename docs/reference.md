@@ -110,13 +110,15 @@ If no untagged variant matches, the message gives the JSON Pointer and reason fo
 
 ```console
 $ serde-gen --help
-Usage: serde-gen INPUT... --output OUTPUT
-       serde-gen --package DIR
+Usage: serde-gen [--validate] INPUT... --output OUTPUT
+       serde-gen [--validate] --package DIR
 ```
 
 All explicit inputs and the output must be in the same MoonBit package.
 The generator does not overwrite a hand-written file or rewrite an output file that has not changed.
 After a generator update, run the generator again to refresh the generated file.
+Use `--validate` to read `#custom.garde` attributes and generate [value validators](validation.md) instead of JSON codecs.
+In package mode, `--validate` writes `garde.generated.mbt` without changing `serde.generated.mbt`.
 
 | Exit status | Meaning |
 | --- | --- |

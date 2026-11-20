@@ -12,8 +12,19 @@ priv enum Rule {
   Range(Int32?, Int32?)
   Required
   Dive
+  DiveWith
   Inner(Array[Rule])
   Custom(String)
+  CustomWith(String)
+  Text(String, String?)
+}
+
+///|
+priv struct Emitter {
+  prefix : String
+  context : String?
+  bounds : Map[String, Array[String]]
+  explicit_bounds : Map[String, Array[String]]
 }
 
 ///|
@@ -93,6 +104,7 @@ fn parse_rules(
     let rule : Rule = match prop {
       Expr(Ident({ qual: None, name: "required", })) => Required
       Expr(Ident({ qual: None, name: "dive", })) => Dive
+      Expr(Ident({ qual: None, name: "dive_with", })) => DiveWith
       Expr(Apply({ qual: None, name: "length", }, bounds)) => {
         let (min, max) = parse_bounds(bounds, at, "length")
         Length(min, max)
@@ -103,12 +115,31 @@ fn parse_rules(
       }
       Expr(Apply({ qual: None, name: "inner", }, inner)) =>
         Inner(parse_rules(inner, at))
+      Expr(Ident({ qual: None, name: "ascii" | "alphanumeric" as name, })) =>
+        Text(name, None)
       Expr(
         Apply(
-          { qual: None, name: "custom", },
+          { qual: None, name: "contains" | "prefix" | "suffix" as name, },
+          More(Expr(String(raw)), tail=Empty),
+        ),
+      ) => {
+        let json = @json.parse("\"\{raw}\""[:]) catch {
+          _ =>
+            raise GenerateError(
+              "\{at}: \{name} expects a JSON-compatible string literal",
+            )
+        }
+        guard json is String(value) else {
+          raise GenerateError("\{at}: \{name} expects a string literal")
+        }
+        Text(name, Some("\"\{value.escape(quote=false)}\""))
+      }
+      Expr(
+        Apply(
+          { qual: None, name: "custom" | "custom_with" as kind, },
           More(Expr(Ident({ qual: None, name, })), tail=Empty),
         ),
-      ) => Custom(name)
+      ) => if kind == "custom" { Custom(name) } else { CustomWith(name) }
       _ => fail_rule(at, "unknown or invalid garde rule")
     }
     rules.push(rule)
@@ -146,13 +177,45 @@ fn bound_expr(value : Int32?) -> String {
 }
 
 ///|
+fn require_bound(
+  emitter : Emitter,
+  ty : @syntax.Type,
+  trait_name : String,
+  nested~ : Bool = false,
+) -> Unit {
+  if ty is Name(constr_id~, tys~, ..) {
+    if tys.is_empty() &&
+      constr_id.id is Ident(name~) &&
+      emitter.bounds.get(name) is Some(bounds) {
+      if !emitter.explicit_bounds.contains(name) && !bounds.contains(trait_name) {
+        bounds.push(trait_name)
+      }
+    } else if nested {
+      for arg in tys {
+        require_bound(emitter, arg, trait_name, nested=true)
+      }
+    }
+  } else if nested {
+    match ty {
+      Option(ty~, ..) => require_bound(emitter, ty, trait_name, nested=true)
+      Tuple(tys~, ..) =>
+        for arg in tys {
+          require_bound(emitter, arg, trait_name, nested=true)
+        }
+      _ => ()
+    }
+  }
+}
+
+///|
 fn emit_rules(
   out : StringBuilder,
   ty : @syntax.Type,
   rules : Array[Rule],
   at : String,
-  p : String,
+  emitter : Emitter,
 ) -> Unit raise GenerateError {
+  let p = emitter.prefix
   for rule in rules {
     if rule is Required {
       guard option_value(ty) is Some(_) else {
@@ -162,7 +225,7 @@ fn emit_rules(
         "if \{p}value is None { \{p}report.add(\{p}path, \"is required\") }\n",
       )
     } else {
-      emit_rule(out, ty, rule, at, p)
+      emit_rule(out, ty, rule, at, emitter)
     }
   }
 }
@@ -173,23 +236,47 @@ fn emit_rule(
   ty : @syntax.Type,
   rule : Rule,
   at : String,
-  p : String,
+  emitter : Emitter,
 ) -> Unit raise GenerateError {
+  let p = emitter.prefix
   if option_value(ty) is Some(inner) {
     out.write_string("if \{p}value is Some(\{p}value) {\n")
-    emit_rule(out, inner, rule, at, p)
+    emit_rule(out, inner, rule, at, emitter)
     out.write_string("}\n")
     return
   }
   let call = match rule {
-    Length(min, max) =>
+    Length(min, max) => {
+      require_bound(emitter, ty, "Length")
       "@garde.length(\{p}value, \{bound_expr(min)}, \{bound_expr(max)})"
+    }
     Range(min, max) =>
       "@garde.range(\{p}value, \{bound_expr(min)}, \{bound_expr(max)})"
     Custom(function) => "\{function}(\{p}value)"
+    CustomWith(function) => {
+      guard emitter.context is Some(_) else {
+        raise GenerateError("\{at}: custom_with requires context on the type")
+      }
+      "\{function}(\{p}value, \{p}context)"
+    }
+    Text(rule, arg) =>
+      match arg {
+        Some(literal) => "@garde.\{rule}(\{p}value, \{literal})"
+        None => "@garde.\{rule}(\{p}value)"
+      }
     Dive => {
+      require_bound(emitter, ty, "Validate", nested=true)
       out.write_string(
         "@garde.Validate::collect(\{p}value, \{p}report, \{p}path)\n",
+      )
+      return
+    }
+    DiveWith => {
+      guard emitter.context is Some(_) else {
+        raise GenerateError("\{at}: dive_with requires context on the type")
+      }
+      out.write_string(
+        "\{p}value.collect_with(\{p}context, \{p}report, \{p}path)\n",
       )
       return
     }
@@ -210,7 +297,7 @@ fn emit_rule(
       out.write_string(
         "for \{p}index, \{p}value in \{p}value {\nlet \{p}path = \{p}path.index(\{p}index)\n",
       )
-      emit_rules(out, item, rules, at, p)
+      emit_rules(out, item, rules, at, emitter)
       out.write_string("}\n")
       return
     }
@@ -222,96 +309,12 @@ fn emit_rule(
 }
 
 ///|
-fn emit_declaration(
-  out : StringBuilder,
-  decl : @syntax.TypeDecl,
-  seen : Map[String, Bool],
-  p : String,
-) -> Unit raise GenerateError {
-  let attrs = options(decl.attrs)
-  guard decl.components is Record(fields~, ..) else {
-    if attrs is Some((at, _)) {
-      fail(at, "#custom.garde supports record structs only")
-    }
-    if decl.components is Variant(variants) {
-      for variant in variants {
-        if options(variant.attrs) is Some((at, _)) {
-          fail(at, "#custom.garde supports record fields only")
-        }
-      }
-    }
-    return
-  }
-  let allow_unvalidated = match attrs {
-    Some((_, Empty)) | None => false
-    Some(
-      (
-        _,
-        More(
-          Expr(Ident({ qual: None, name: "allow_unvalidated", })),
-          tail=Empty,
-        ),
-      ),
-    ) => true
-    Some((at, _)) =>
-      raise GenerateError(
-        "\{at}: expected allow_unvalidated or no struct options",
-      )
-  }
-  if attrs is Some((at, _)) {
-    if !decl.params.is_empty() {
-      fail(at, "#custom.garde does not yet support generic structs")
-    }
-    if seen.contains(decl.tycon) {
-      fail(at, "duplicate garde struct: \{decl.tycon}")
-    }
-    seen[decl.tycon] = true
-  }
-  let body = StringBuilder()
-  for field in fields {
-    match options(field.attrs) {
-      None if attrs is Some(_) && !allow_unvalidated =>
-        fail(
-          Show::to_string(field.loc),
-          "field needs a garde rule or #custom.garde(skip)",
-        )
-      None => ()
-      Some((at, _)) if attrs is None =>
-        fail(at, "field #custom.garde requires #custom.garde on its struct")
-      Some((_, More(Expr(Ident({ qual: None, name: "skip", })), tail=Empty))) =>
-        ()
-      Some((at, props)) => {
-        let rules = parse_rules(props, at)
-        let field_name = field.name.label
-        body.write_string(
-          "{\nlet \{p}value = \{p}self.\{field_name}\nlet \{p}path = \{p}path.field(\"\{field_name}\")\n",
-        )
-        emit_rules(body, field.ty, rules, at, p)
-        body.write_string("}\n")
-      }
-    }
-  }
-  if attrs is Some(_) {
-    let visibility = if decl.type_vis is Priv(..) { "" } else { "pub " }
-    let body = body.to_string()
-    let args = if body.is_empty() {
-      "_, _, _"
-    } else {
-      "\{p}self, \{p}report, \{p}path"
-    }
-    out.write_string(
-      "\{visibility}impl @garde.Validate for \{decl.tycon} with fn collect(\{args}) {\n\{body}}\n",
-    )
-  }
-}
-
-///|
 /// Generate validation implementations without changing any JSON codecs.
 pub fn generate_many(
   sources : Array[(String, String)],
 ) -> String raise GenerateError {
   let out = StringBuilder()
-  let seen = Map([])
+  let seen : Map[String, String] = Map([])
   for source in sources {
     let (name, text) = source
     // Do not shadow a custom validator's function name.

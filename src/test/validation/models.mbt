@@ -41,3 +41,84 @@ pub(all) struct Queue {
   batches : FixedArray[ReadOnlyArray[Int32?]]
   name : String
 }
+
+///|
+#custom.serde
+#custom.garde(field(index="0", ascii, alphanumeric, prefix("A")))
+pub(all) struct Code(String)
+
+///|
+pub impl @garde.Length for Code with fn garde_length(self) {
+  let Code(text) = self
+  text.length()
+}
+
+///|
+#custom.serde
+#custom.garde(field(index="0", dive), field(index="1", required))
+pub struct Pair(Code, String?)
+
+///|
+#custom.serde
+#custom.garde
+pub(all) struct Batch[T, U] {
+  #custom.garde(inner(dive))
+  items : Array[T]
+  #custom.garde(skip)
+  metadata : U
+}
+
+///|
+#custom.serde(tag="kind", content="data", rename_all="snake_case")
+#custom.garde
+pub enum Entry[T] {
+  Empty
+  #custom.garde(field(index="0", dive), field(index="1", skip))
+  CodeEntry(T, Int32)
+  #custom.garde(field(name="label", contains("\""), suffix("\u0021")))
+  Named(label~ : String)
+  #custom.garde(skip)
+  Unchecked(String)
+}
+
+///|
+#custom.garde(field(index="0", length(min="2")))
+pub(all) struct Sized[T](T)
+
+///|
+#custom.garde(bounds(T, [Length]), field(index="0", dive))
+pub(all) struct NestedSized[T](Sized[T])
+
+///|
+#custom.garde(field(index="0", length(min="2"), dive))
+pub(all) struct Measured[T](T)
+
+///|
+pub(all) struct Policy {
+  max_count : Int32
+}
+
+///|
+#custom.serde
+#custom.garde(context=Policy)
+pub(all) struct Allocation {
+  #custom.garde(range(min="0"), custom_with(check_count))
+  count : Int32
+}
+
+///|
+fn check_count(count : Int32, policy : Policy) -> String? {
+  if count > policy.max_count {
+    Some("exceeds quota")
+  } else {
+    None
+  }
+}
+
+///|
+#custom.serde
+#custom.garde(context=Policy)
+pub(all) struct Request {
+  #custom.garde(inner(dive_with))
+  allocations : Array[Allocation]
+}

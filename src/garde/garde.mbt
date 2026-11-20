@@ -55,6 +55,23 @@ struct Report {
 }
 
 ///|
+pub impl Show for Report with fn output(self, out) {
+  for index, violation in self.violations {
+    if index > 0 {
+      out.write_char('\n')
+    }
+    let path = Show::to_string(violation.path)
+    if path.is_empty() {
+      out.write_string("<root>")
+    } else {
+      out.write_string(path)
+    }
+    out.write_string(": ")
+    out.write_string(violation.message)
+  }
+}
+
+///|
 /// Add a violation from a hand-written or generated `Validate` implementation.
 pub fn Report::add(self : Report, path : Path, message : String) -> Unit {
   self.violations.push({ path, message, })
@@ -74,8 +91,17 @@ pub(open) trait Validate {
 ///|
 /// Validate an existing value and return all violations, independently of decoding.
 pub fn[T : Validate] validate(value : T) -> Result[Unit, Report] {
+  validate_using(value, T::collect)
+}
+
+///|
+/// Validate with a collector that can capture a typed context.
+pub fn[T] validate_using(
+  value : T,
+  collect : (T, Report, Path) -> Unit,
+) -> Result[Unit, Report] {
   let report = { violations: [], }
-  T::collect(value, report, { reversed: @list.List([]), })
+  collect(value, report, { reversed: @list.List([]), })
   if report.violations.is_empty() {
     Ok(())
   } else {

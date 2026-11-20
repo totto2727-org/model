@@ -1,5 +1,5 @@
 ///|
-pub trait Length {
+pub(open) trait Length {
   fn garde_length(Self) -> Int32
 }
 
@@ -58,5 +58,53 @@ pub fn range(value : Int32, min : Int32?, max : Int32?) -> String? {
     Some("must be at most \{n}")
   } else {
     None
+  }
+}
+
+///|
+pub fn ascii(value : String) -> String? {
+  for char in value {
+    if char.to_int() > 0x7F {
+      return Some("must contain only ASCII characters")
+    }
+  }
+  None
+}
+
+///|
+pub fn alphanumeric(value : String) -> String? {
+  for char in value {
+    match char {
+      'a'..<='z' | 'A'..<='Z' | '0'..<='9' => ()
+      _ => return Some("must contain only ASCII letters and digits")
+    }
+  }
+  None
+}
+
+///|
+pub fn contains(value : String, needle : String) -> String? {
+  if value.contains(needle) {
+    None
+  } else {
+    Some("must contain '\{needle}'")
+  }
+}
+
+///|
+pub fn prefix(value : String, expected : String) -> String? {
+  if value.has_prefix(expected) {
+    None
+  } else {
+    Some("must start with '\{expected}'")
+  }
+}
+
+///|
+pub fn suffix(value : String, expected : String) -> String? {
+  if value.has_suffix(expected) {
+    None
+  } else {
+    Some("must end with '\{expected}'")
   }
 }
