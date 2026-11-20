@@ -229,3 +229,97 @@ pub struct WithSkipped[T, U] {
   #custom.serde(skip)
   hidden : U
 }
+
+///|
+priv struct Code(Int32)
+
+///|
+fn encode_code(code : Code) -> Json {
+  let Code(number) = code
+  ToJson::to_json(number)
+}
+
+///|
+fn decode_code(
+  value : Json,
+  path : @json.JsonPath,
+) -> Code raise @json.JsonDecodeError {
+  Code(@json.from_json(value, path~))
+}
+
+///|
+fn Code::serialize(value : Code?) -> Json {
+  match value {
+    None => Json::null()
+    Some(code) => encode_code(code)
+  }
+}
+
+///|
+fn Code::deserialize(
+  value : Json,
+  path : @json.JsonPath,
+) -> Code? raise @json.JsonDecodeError {
+  Some(decode_code(value, path))
+}
+
+///|
+#custom.serde
+priv struct HookModel {
+  #custom.serde(serialize_with="encode_code", deserialize_with="decode_code", path=["meta", "id"])
+  id : Code
+  #custom.serde(codec="Code")
+  other : Code?
+}
+
+///|
+#custom.serde
+priv struct FlattenedModel {
+  #custom.serde(flatten)
+  extra : Map[String, Json]
+  #custom.serde(rename="id", aliases=["oldId"])
+  identifier : Int32
+  #custom.serde(path=["meta", "active"])
+  active : Bool
+}
+
+///|
+test "field hooks replace JSON traits and receive the field path" {
+  let input : Json = { "meta": { "id": 7 }, "other": 8 }
+  let model : HookModel = @json.from_json(input)
+  assert_eq(ToJson::to_json(model), input)
+  let missing : HookModel = @json.from_json({ "meta": { "id": 7 } })
+  assert_true(missing.other is None)
+  let path = try {
+    let _ : HookModel = @json.from_json({ "meta": { "id": "bad" } })
+    fail("expected a field error")
+  } catch {
+    @json.JsonDecodeError((path, _)) => path.to_string()
+    error => raise error
+  }
+  assert_eq(path, "/meta/id")
+}
+
+///|
+test "flatten decodes remaining keys without mutating the input" {
+  let input : Json = { "oldId": 4, "meta": { "active": true }, "color": "blue" }
+  let model : FlattenedModel = @json.from_json(input)
+  assert_eq(model.extra, { "color": "blue" })
+  assert_eq(input, { "oldId": 4, "meta": { "active": true }, "color": "blue" })
+  assert_eq(ToJson::to_json(model), {
+    "id": 4,
+    "meta": { "active": true },
+    "color": "blue",
+  })
+}
+
+///|
+test "panic flatten does not overwrite a parent's canonical keys or aliases" {
+  ignore(
+    ToJson::to_json(FlattenedModel::{
+      extra: { "oldId": Json::null() },
+      identifier: 4,
+      active: true,
+    }),
+  )
+}

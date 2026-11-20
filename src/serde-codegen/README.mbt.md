@@ -381,6 +381,130 @@ Generated decoder excerpt:
   )
 ```
 
+#### `flatten`: expand a child object into its parent
+
+This model reads `{ "label": "desk", "color": "blue" }` and writes the same object.
+
+```mbt nocheck
+///|
+#custom.serde
+pub struct WithExtras {
+  label : String
+  #custom.serde(flatten)
+  extra : Map[String, Json]
+}
+```
+
+Generated encoder excerpt:
+
+```mbt nocheck
+  @serde.write_flattened(obj, ToJson::to_json(self.extra), ["label"])
+```
+
+Generated decoder excerpts:
+
+```mbt nocheck
+///|
+let remaining = @serde.flattened_remainder(obj, ["label"])
+```
+
+```mbt nocheck
+///|
+let f1 : Map[String, Json] = @json.from_json(remaining, path~)
+```
+
+The decoder passes the remaining keys to the flattened field after excluding the other fields' keys, aliases, and top-level path segments.
+Use one non-optional flattened field per record and do not combine it with `deny_unknown_fields` or other options on the same field.
+The MoonBit `ToJson` trait cannot return an encoding error. Encoding aborts if the field produces a non-object value or a key reserved by the parent.
+
+#### `serialize_with` and `deserialize_with`: convert one field
+
+Use either option to replace the trait call in that direction. The other direction keeps the default codec unless it also has a hook.
+
+```mbt nocheck
+///|
+fn encode_count(value : Int32) -> Json {
+  ToJson::to_json(value)
+}
+
+///|
+fn decode_count(
+  value : Json,
+  path : @json.JsonPath,
+) -> Int32 raise @json.JsonDecodeError {
+  @json.from_json(value, path~)
+}
+
+///|
+#custom.serde
+pub struct Count {
+  #custom.serde(serialize_with="encode_count", deserialize_with="decode_count")
+  count : Int32
+}
+```
+
+Generated encoder excerpt:
+
+```mbt nocheck
+  obj.set("count", encode_count(self.count))
+```
+
+Generated decoder excerpt:
+
+```mbt nocheck
+    Some(value) => decode_count(value, path.add_key("count"))
+```
+
+Use a function name, an imported function such as `@wire.encode`, or a qualified method such as `Wire::encode`.
+The encoder receives the complete field value. The decoder receives the present JSON value and its path.
+A missing value still uses the field's usual rules for optional values, defaults, or missing-field errors.
+An explicit JSON `null` reaches the decoder hook unchanged.
+
+#### `codec`: use a pair of conversion functions
+
+`codec="Wire"` calls `Wire::serialize` and `Wire::deserialize`. `codec="@wire"` calls `@wire.serialize` and `@wire.deserialize` from an imported package.
+
+```mbt nocheck
+///|
+priv struct Wire(Int32)
+
+///|
+fn Wire::serialize(value : Wire) -> Json {
+  let Wire(number) = value
+  ToJson::to_json(number)
+}
+
+///|
+fn Wire::deserialize(
+  value : Json,
+  path : @json.JsonPath,
+) -> Wire raise @json.JsonDecodeError {
+  Wire(@json.from_json(value, path~))
+}
+
+///|
+#custom.serde
+priv struct Packet {
+  #custom.serde(codec="Wire")
+  id : Wire
+}
+```
+
+Generated encoder excerpt:
+
+```mbt nocheck
+  obj.set("id", Wire::serialize(self.id))
+```
+
+Generated decoder excerpt:
+
+```mbt nocheck
+    Some(value) => Wire::deserialize(value, path.add_key("id"))
+```
+
+Do not combine `codec` with either individual hook on the same field.
+The field type does not need to implement the JSON traits in the directions provided by hooks.
+
 ### Enum options
 
 A single positional argument writes its value. Multiple positional arguments write a JSON array. Named arguments write a JSON object.

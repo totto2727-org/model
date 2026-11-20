@@ -75,4 +75,13 @@ pub(all) struct Field {
   default : Bool
   skip : Bool
   omit_none : Bool
+  flatten : Bool
+  serialize_with : Hook?
+  deserialize_with : Hook?
+}
+
+///|
+pub(all) enum Hook {
+  Function(String?, String)
+  Method(String?, String, String)
 }

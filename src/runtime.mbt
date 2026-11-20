@@ -99,6 +99,39 @@ pub fn write_path(
 }
 
 ///|
+/// Copy the keys that are not claimed by the enclosing record.
+pub fn flattened_remainder(
+  fields : Map[String, Json],
+  reserved : Array[String],
+) -> Json {
+  let remaining = Map([])
+  for key, value in fields {
+    if !reserved.contains(key) {
+      remaining[key] = value
+    }
+  }
+  Json::object(remaining)
+}
+
+///|
+/// Expand an object into its parent without overwriting a parent key.
+pub fn write_flattened(
+  fields : Map[String, Json],
+  value : Json,
+  reserved : Array[String],
+) -> Unit {
+  guard value is Object(child) else {
+    abort("a flattened Serde field must encode as a JSON object")
+  }
+  for key, value in child {
+    if reserved.contains(key) {
+      abort("flattened Serde key collides with the enclosing record: \{key}")
+    }
+    fields[key] = value
+  }
+}
+
+///|
 /// Reject unexpected keys without changing the caller's object.
 pub fn deny_unknown(
   fields : Map[String, Json],

@@ -178,15 +178,114 @@ fn option_depth(ty : @syntax.Type) -> Int32 {
 }
 
 ///|
+fn field_attributes() -> Array[String] {
+  [
+    "rename", "aliases", "default", "skip", "skip_serializing_if", "path", "serialize_with",
+    "deserialize_with", "codec", "flatten",
+  ]
+}
+
+///|
+fn hook_identifier(name : String) -> Bool {
+  let chars = name.to_array()
+  !chars.is_empty() &&
+  chars[0] is ('a'..<='z' | 'A'..<='Z' | '_') &&
+  chars.all(ch => ch is ('a'..<='z' | 'A'..<='Z' | '0'..<='9' | '_'))
+}
+
+///|
+fn hook_target(
+  value : String,
+  key : String,
+  context : String,
+) -> (String?, String) raise GenerateError {
+  let invalid = "\{key} must name a MoonBit function, type, or package"
+  if value.strip_prefix("@") is Some(qualified) {
+    let parts = qualified.split(".").map(part => part.to_owned()).collect()
+    match parts {
+      [pkg, name] if hook_identifier(pkg) && hook_identifier(name) =>
+        (Some(pkg), name)
+      _ => raise GenerateError("\{context}: \{invalid}")
+    }
+  } else if hook_identifier(value) {
+    (None, value)
+  } else {
+    raise GenerateError("\{context}: \{invalid}")
+  }
+}
+
+///|
+fn parse_hook(
+  value : String,
+  key : String,
+  context : String,
+) -> Hook raise GenerateError {
+  let parts = value.split("::").map(part => part.to_owned()).collect()
+  match parts {
+    [target] => {
+      let (pkg, name) = hook_target(target, key, context)
+      Function(pkg, name)
+    }
+    [target, method_name] if hook_identifier(method_name) => {
+      let (pkg, name) = hook_target(target, key, context)
+      Method(pkg, name, method_name)
+    }
+    _ =>
+      raise GenerateError(
+        "\{context}: \{key} must name a MoonBit function or method",
+      )
+  }
+}
+
+///|
+fn field_hooks(
+  options : Map[String, @attribute.Expr],
+  context : String,
+) -> (Hook?, Hook?) raise GenerateError {
+  let serialize = string_option(options, "serialize_with", context)
+  let deserialize = string_option(options, "deserialize_with", context)
+  if string_option(options, "codec", context) is Some(value) {
+    if serialize is Some(_) || deserialize is Some(_) {
+      serde_error(
+        context, "codec cannot be combined with serialize_with or deserialize_with",
+      )
+    }
+    if value.strip_prefix("@") is Some(pkg) && hook_identifier(pkg.to_owned()) {
+      (
+        Some(Function(Some(pkg.to_owned()), "serialize")),
+        Some(Function(Some(pkg.to_owned()), "deserialize")),
+      )
+    } else {
+      let (pkg, name) = hook_target(value, "codec", context)
+      (
+        Some(Method(pkg, name, "serialize")),
+        Some(Method(pkg, name, "deserialize")),
+      )
+    }
+  } else {
+    (
+      match serialize {
+        Some(v) => Some(parse_hook(v, "serialize_with", context))
+        None => None
+      },
+      match deserialize {
+        Some(v) => Some(parse_hook(v, "deserialize_with", context))
+        None => None
+      },
+    )
+  }
+}
+
+///|
 fn parse_field(
   field : @syntax.FieldDecl,
   rename_all : String?,
 ) -> Field raise GenerateError {
   let name = field.name.label
   let context = Show::to_string(field.loc)
-  let options = serde_options(field.attrs, [
-    "rename", "aliases", "default", "skip", "skip_serializing_if", "path",
-  ]).unwrap_or(Map([]))
+  let options = serde_options(field.attrs, field_attributes()).unwrap_or(
+    Map([]),
+  )
   let path = match options.get("path") {
     None => []
     Some(Array(items)) if !items.is_empty() => {
@@ -234,6 +333,25 @@ fn parse_field(
   }
   let option_depth = option_depth(field.ty)
   let optional = option_depth > 0
+  let flatten = flag_option(options, "flatten", context)
+  let skip = flag_option(options, "skip", context)
+  let (serialize_with, deserialize_with) = field_hooks(options, context)
+  if flatten {
+    if optional {
+      serde_error(context, "flatten requires a non-optional field")
+    }
+    if [
+        "rename", "aliases", "path", "default", "skip", "skip_serializing_if", "codec",
+        "serialize_with", "deserialize_with",
+      ].any(key => options.contains(key)) {
+      serde_error(
+        context, "flatten cannot be combined with other field options",
+      )
+    }
+  }
+  if skip && (serialize_with is Some(_) || deserialize_with is Some(_)) {
+    serde_error(context, "skip cannot be combined with codec hooks")
+  }
   let omit_none = match string_option(options, "skip_serializing_if", context) {
     None => false
     Some("Option::is_none") if optional => true
@@ -253,8 +371,11 @@ fn parse_field(
     optional,
     option_depth,
     default: flag_option(options, "default", context),
-    skip: flag_option(options, "skip", context),
+    skip,
     omit_none,
+    flatten,
+    serialize_with,
+    deserialize_with,
   }
 }
 
@@ -351,6 +472,9 @@ fn parse_variant(
         default: false,
         skip: false,
         omit_none: false,
+        flatten: false,
+        serialize_with: None,
+        deserialize_with: None,
       })
     }
   }
@@ -389,10 +513,7 @@ fn parse_definition(decl : @syntax.TypeDecl) -> Definition? raise GenerateError 
     match decl.components {
       Record(fields~, ..) =>
         for field in fields {
-          if serde_options(field.attrs, [
-              "rename", "aliases", "default", "skip", "skip_serializing_if", "path",
-            ])
-            is Some(_) {
+          if serde_options(field.attrs, field_attributes()) is Some(_) {
             serde_error(
               context, "field #custom.serde requires #custom.serde on its type",
             )
@@ -459,10 +580,19 @@ fn parse_definition(decl : @syntax.TypeDecl) -> Definition? raise GenerateError 
       for field in fields {
         parsed.push(parse_field(field, rename_all))
       }
-      if parsed.all(field => field.path.is_empty()) {
-        assert_unique_keys(parsed, context, None)
+      let direct = parsed.filter(field => !field.flatten)
+      if parsed.length() - direct.length() > 1 {
+        serde_error(context, "only one flatten field is supported per record")
+      }
+      if parsed.length() != direct.length() && deny_unknown_fields {
+        serde_error(
+          context, "flatten cannot be combined with deny_unknown_fields",
+        )
+      }
+      if direct.all(field => field.path.is_empty()) {
+        assert_unique_keys(direct, context, None)
       } else {
-        assert_unique_paths(parsed, context)
+        assert_unique_paths(direct, context)
       }
       Some(
         Record({

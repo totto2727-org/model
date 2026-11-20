@@ -1040,3 +1040,52 @@ pub impl[T : @json.FromJson, U : Default] @json.FromJson for WithSkipped[T, U] w
   let f1 : U = Default::default()
   { value: f0, hidden: f1, }
 }
+
+///|
+impl ToJson for HookModel with fn to_json(self) {
+  let obj : Map[String, Json] = Map([])
+  @serde.write_path(obj, ["meta", "id"], encode_code(self.id))
+  obj.set("other", Code::serialize(self.other))
+  Json::object(obj)
+}
+
+///|
+impl @json.FromJson for HookModel with fn from_json(value, path) {
+  let obj = @serde.object(value, path)
+  let f0 : Code = match @serde.read_path(obj, ["meta", "id"], path) {
+    (Some(value), at, _) => decode_code(value, at)
+    (None, at, key) => @serde.missing_field(at, key)
+  }
+  let f1 : Code? = match @serde.field(obj, "other", [], path) {
+    Some(value) => Code::deserialize(value, path.add_key("other"))
+    None => None
+  }
+  { id: f0, other: f1, }
+}
+
+///|
+impl ToJson for FlattenedModel with fn to_json(self) {
+  let obj : Map[String, Json] = Map([])
+  @serde.write_flattened(obj, ToJson::to_json(self.extra), [
+    "id", "oldId", "meta",
+  ])
+  obj.set("id", ToJson::to_json(self.identifier))
+  @serde.write_path(obj, ["meta", "active"], ToJson::to_json(self.active))
+  Json::object(obj)
+}
+
+///|
+impl @json.FromJson for FlattenedModel with fn from_json(value, path) {
+  let obj = @serde.object(value, path)
+  let remaining = @serde.flattened_remainder(obj, ["id", "oldId", "meta"])
+  let f0 : Map[String, Json] = @json.from_json(remaining, path~)
+  let f1 : Int32 = match @serde.field(obj, "id", ["oldId"], path) {
+    Some(value) => @json.from_json(value, path=path.add_key("id"))
+    None => @serde.missing_field(path.add_key("id"), "id")
+  }
+  let f2 : Bool = match @serde.read_path(obj, ["meta", "active"], path) {
+    (Some(value), at, _) => @json.from_json(value, path=at)
+    (None, at, key) => @serde.missing_field(at, key)
+  }
+  { extra: f0, identifier: f1, active: f2, }
+}

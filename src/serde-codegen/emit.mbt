@@ -144,12 +144,34 @@ fn missing(
 }
 
 ///|
+fn hook_expr(hook : Hook) -> @syntax.Expr {
+  match hook {
+    Function(pkg, name) => ast_ident(name, pkg?)
+    Method(pkg, name, method_name) => ast_method(name, method_name, pkg?)
+  }
+}
+
+///|
+fn decode_field_value(
+  field : Field,
+  value : @syntax.Expr,
+  path : @syntax.Expr,
+) -> @syntax.Expr {
+  match field.deserialize_with {
+    Some(hook) => call(hook_expr(hook), [value, path])
+    None => decode_value(value, path, field.option_depth)
+  }
+}
+
+///|
 fn decode_field(field : Field) -> @syntax.Expr {
   let field_path = key_path(field.wire_name)
   let value = ast_ident("value")
   let some = variant_pat("Some", [(None, ast_bind("value"))])
   let none = variant_pat("None", [])
-  if field.skip {
+  if field.flatten {
+    decode_value(ast_ident("remaining"), ast_ident("path"), 0)
+  } else if field.skip {
     missing(field, field_path, ast_string(field.wire_name))
   } else if !field.path.is_empty() {
     let at = ast_ident("at")
@@ -167,7 +189,7 @@ fn decode_field(field : Field) -> @syntax.Expr {
       [
         (
           ast_tuple_pat([some, ast_bind("at"), ast_any()]),
-          decode_value(value, at, field.option_depth),
+          decode_field_value(field, value, at),
         ),
         (ast_tuple_pat(missing_parts), missing(field, at, ast_ident("key"))),
       ],
@@ -181,7 +203,7 @@ fn decode_field(field : Field) -> @syntax.Expr {
         ast_ident("path"),
       ]),
       [
-        (some, decode_value(value, field_path, field.option_depth)),
+        (some, decode_field_value(field, value, field_path)),
         (none, missing(field, field_path, ast_string(field.wire_name))),
       ],
     )
@@ -219,6 +241,26 @@ fn deny_unknown(fields : Array[Field]) -> @syntax.Expr {
 }
 
 ///|
+fn direct_keys(fields : Array[Field]) -> @syntax.Expr {
+  let keys = []
+  for field in fields {
+    if !field.flatten {
+      keys.push(
+        if field.path.is_empty() {
+          field.wire_name
+        } else {
+          field.path[0]
+        },
+      )
+      for alternate in field.aliases {
+        keys.push(alternate)
+      }
+    }
+  }
+  string_array(keys)
+}
+
+///|
 fn decode_fields(
   fields : Array[Field],
   deny : Bool,
@@ -236,6 +278,13 @@ fn decode_fields(
   }
   if deny {
     body = ast_seq([deny_unknown(fields)], body)
+  }
+  if fields.any(field => field.flatten) {
+    body = ast_let(
+      ast_bind("remaining"),
+      serde_call("flattened_remainder", [ast_ident("obj"), direct_keys(fields)]),
+      body,
+    )
   }
   ast_let(
     ast_bind("obj"),
@@ -257,8 +306,13 @@ fn encode_fields(fields : Array[Field], record : Bool) -> Array[@syntax.Expr] {
     } else {
       ast_ident(field_local(i))
     }
-    let encoded = encode_value(value, field.option_depth)
-    let write = if field.path.is_empty() {
+    let encoded = match field.serialize_with {
+      Some(hook) => call(hook_expr(hook), [value])
+      None => encode_value(value, field.option_depth)
+    }
+    let write = if field.flatten {
+      serde_call("write_flattened", [obj, encoded, direct_keys(fields)])
+    } else if field.path.is_empty() {
       dot_call(obj, "set", [ast_string(field.wire_name), encoded])
     } else {
       serde_call("write_path", [obj, string_array(field.path), encoded])
@@ -344,7 +398,9 @@ fn field_quantifiers(
   let types = []
   let defaults = []
   for field in fields {
-    if !field.skip {
+    if !field.skip &&
+      (if decode { field.deserialize_with } else { field.serialize_with })
+      is None {
       types.push(field.ty)
     }
     if decode && !field.optional && (field.skip || field.default) {

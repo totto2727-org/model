@@ -105,6 +105,35 @@ fn assert_invalid_serde(source : String, reason : String) -> Unit raise {
 }
 
 ///|
+test "invalid flatten and codec hooks report source errors" {
+  for
+    (attributes, ty, reason) in [
+      (
+        "codec=\"Codec\", serialize_with=\"encode\"", "Json", "codec cannot be combined",
+      ),
+      (
+        "deserialize_with=\"decode(value)\"", "Json", "must name a MoonBit function",
+      ),
+      ("skip, serialize_with=\"encode\"", "Json", "skip cannot be combined"),
+      ("flatten", "Map[String, Json]?", "flatten requires a non-optional field"),
+      ("flatten, rename=\"keys\"", "Json", "flatten cannot be combined"),
+    ] {
+    assert_invalid_serde(
+      "#custom.serde\nstruct S {\n#custom.serde(\{attributes})\nx : \{ty}\n}",
+      reason,
+    )
+  }
+  assert_invalid_serde(
+    "#custom.serde(deny_unknown_fields)\nstruct S {\n#custom.serde(flatten)\nx : Map[String, Json]\n}",
+    "flatten cannot be combined with deny_unknown_fields",
+  )
+  assert_invalid_serde(
+    "#custom.serde\nstruct S {\n#custom.serde(flatten)\nx : Map[String, Json]\n#custom.serde(flatten)\ny : Map[String, Json]\n}",
+    "only one flatten field",
+  )
+}
+
+///|
 test "invalid serde options fail instead of producing codecs" {
   for
     (source, reason) in [
