@@ -126,7 +126,7 @@ Pass the package directory, not a list of model files.
 Use the Mooncakes version selector to read the documentation for the version you installed.
 
 - [Serde API](https://mooncakes.io/docs/totto2727/serde): Runtime helpers used by generated JSON codecs.
-- [Serde attributes](https://mooncakes.io/docs/totto2727/serde/codegen): `#custom.serde` examples and generated codec excerpts.
+- [Serde attributes](https://mooncakes.io/docs/totto2727/serde/serde-codegen): `#custom.serde` examples and generated codec excerpts.
 - [Garde API and attributes](https://mooncakes.io/docs/totto2727/serde/garde): Validation types, `#custom.garde` examples, and generated validator excerpts. Select a release that includes Garde.
 
 For command-line options, see the [`serde-gen` package README](https://mooncakes.io/docs/totto2727/serde-gen) after the CLI release is available on Mooncakes.
