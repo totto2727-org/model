@@ -73,8 +73,7 @@ pub fn ascii(value : String) -> String? {
 ///|
 pub fn alphanumeric(value : String) -> String? {
   for char in value {
-    if !@moonucd.has(char, Alphabetic) &&
-      !(@moonucd.category(char) is (Nd | Nl | No)) {
+    if !char.is_numeric() && !@moonucd.has(char, Alphabetic) {
       return Some("must contain only letters and numbers")
     }
   }

@@ -1,7 +1,4 @@
 ///|
-let email_local : @string.Regex = re"^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~\-]+$"
-
-///|
 let email_domain : @string.Regex = re"^[a-zA-Z0-9](?:[a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?(?:[.][a-zA-Z0-9](?:[a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?)*$"
 
 ///|
@@ -17,14 +14,17 @@ fn valid_email_domain(domain : StringView) -> Bool {
 }
 
 ///|
-/// Check the HTML email address syntax with Garde's local and domain length limits.
+/// Check a bare mailbox address with Garde's local and domain length limits.
 pub fn email(value : String, international~ : Bool = false) -> String? {
   let invalid = Some("invalid email address")
-  guard value.split_once("@") is Some((local_part, domain)) &&
+  guard value.length() <= 320 else { return invalid }
+  let parsed = @moonmail.parse_address(value[:]) catch { _ => return invalid }
+  guard parsed is Mailbox({ name: None, address, }) &&
+    address == value &&
+    value.rev_split_once("@") is Some((local_part, domain)) &&
     local_part.length() <= 64 &&
-    domain.length() <= 255 &&
-    email_local.execute(local_part[:]) is Some(m) &&
-    m.content().length() == local_part.length() else {
+    local_part.iter().all(char => char.is_ascii() && !char.is_ascii_control()) &&
+    domain.length() <= 255 else {
     return invalid
   }
   if valid_email_domain(domain) {

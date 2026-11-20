@@ -329,13 +329,15 @@ impl @garde.Validate for ContactFormats with fn collect(
 
 | Rule | Accepted input and limits |
 | --- | --- |
-| `email` | ASCII [HTML email address syntax](https://html.spec.whatwg.org/multipage/forms.html#valid-e-mail-address) or a bracketed IP domain, with Garde's limits of 64 bytes before `@` and 255 after it. |
+| `email` | A bare mailbox parsed by [MoonMail](https://mooncakes.io/docs/moonbitstack/moonmail), with Garde's limits of 64 bytes for the local part and 255 for the domain. |
 | `url` | An absolute URL, including schemes such as `mailto:` and `file:`. Uses [MoonURL](https://mooncakes.io/docs/moonbitstack/moonurl) in WHATWG mode. |
 | `ip`, `ipv4`, `ipv6` | Bare IPv4 or IPv6 text, without a port, brackets, or zone identifier. IPv4 uses four decimal octets. Uses [MoonIP](https://mooncakes.io/docs/moonbitstack/moonip). |
 | `phone_number` | An international number with a country calling code. Uses [dialnumber](https://mooncakes.io/docs/sssssurf/dialnumber) for numbering-plan checks and does not assume a default region. |
 | `credit_card` | ASCII digits without separators. Checks a known issuer prefix, the number length, and the Luhn checksum as in [Garde](https://docs.rs/garde/latest/garde/rules/credit_card/). |
 
 These rules do not contact an external service. A valid email or telephone number is not evidence that the address or number is assigned or reachable.
+
+Unlike Rust Garde's HTML-based rule, the mailbox parser rejects consecutive unquoted dots and accepts a quoted local part such as `"a@b"@example.org`. Display names, comments, and address lists are not accepted. Use a DNS name or a bare IP address in brackets for the domain.
 
 For Unicode domains, use `#custom.garde(email(international))`. The local part must still be ASCII. The generated check calls `@garde.email(garde_value, international=true)`, which uses MoonURL's IDNA handling when the domain is not already valid.
 
