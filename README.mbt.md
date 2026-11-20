@@ -3,6 +3,7 @@
 Serde generates JSON encoders and decoders for MoonBit types.
 Add `#custom.serde` to a type to control how it reads and writes JSON.
 
+This project is inspired by Rust's [Serde](https://serde.rs/) for serialization and [garde](https://docs.rs/garde/latest/garde/) for validation.
 For application rules that run after decoding, see [Validate a decoded value](docs/validation.md).
 
 ## Usage
@@ -29,8 +30,8 @@ test "encode a profile without an avatar" {
 }
 ```
 
-Run `moon test src`.
-Moon generates `src/models.generated.mbt` and the test checks the JSON output.
+Run `serde-gen --package src && moon test src`.
+The generator discovers annotated files in `src` and writes `src/serde.generated.mbt` before the test runs.
 
 ## Key features
 
@@ -108,10 +109,17 @@ import {
   "moonbitlang/core/json",
   "totto2727/serde",
 }
-
-rule(name: "serde", command: "moonx totto2727/serde-gen $input --output $output")
-dev_build(rule: "serde", input: "models.mbt", output: "models.generated.mbt")
 ```
+
+From the module root, run the generator before `moon check`, `moon build`, or `moon test`.
+For example:
+
+```sh
+serde-gen --package src && moon check
+```
+
+Use `moonx totto2727/serde-gen --package src` when the CLI is available on Mooncakes.
+Pass the package directory, not a list of model files.
 
 ## API
 

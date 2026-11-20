@@ -130,19 +130,19 @@ Help goes to standard output. Errors go to standard error.
 
 ### Package mode
 
-Run `moonx totto2727/serde-gen --package DIR` before Moon to generate code for the entire package.
+Run `serde-gen --package DIR` before Moon to discover inputs and generate code for the entire package.
 For example:
 
 ```sh
-moonx totto2727/serde-gen --package src/models && moon check
+serde-gen --package src/models && serde-gen --validate --package src/models && moon check
 ```
 
-Package mode refreshes `serde.generated.mbt` when source files change.
+Run the package command again after adding, editing, or removing a source file. It refreshes `serde.generated.mbt`, or `garde.generated.mbt` with `--validate`.
 It reads `.mbt` files in `DIR` but does not enter child packages.
 It skips hidden files, generated files with the `.generated.mbt` suffix, tests, and files with backend suffixes.
 Use explicit inputs and a matching output for files that apply only to some targets, including files that `moon.pkg` restricts to those targets.
 
-The official MoonBit parser checks files with the `#custom.serde` marker for attributes.
+The official MoonBit parser checks files with the relevant marker (`#custom.serde` or `#custom.garde`) for attributes.
 A marker in a comment or a string does not generate code.
 
 Moon's `dev_build` rule does not expand wildcards.

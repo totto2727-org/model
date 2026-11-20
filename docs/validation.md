@@ -20,7 +20,7 @@ pub(all) struct Signup {
 }
 ```
 
-Add the validation import and build rule to `moon.pkg`. If your package also generates JSON codecs, keep its existing Serde import and rule.
+Add the validation import to the package's `moon.pkg`. If your package also generates JSON codecs, keep its existing Serde and JSON imports.
 
 ```moonbit
 import {
@@ -28,15 +28,15 @@ import {
   "totto2727/serde",
   "totto2727/serde/garde",
 }
-
-rule(name: "serde", command: "serde-gen $input --output $output")
-rule(name: "garde", command: "serde-gen --validate $input --output $output")
-
-dev_build(rule: "serde", input: "models.mbt", output: "models.serde.generated.mbt")
-dev_build(rule: "garde", input: "models.mbt", output: "models.garde.generated.mbt")
 ```
 
-Alternatively, run `serde-gen --validate --package ./path/to/package` to write `garde.generated.mbt` without changing `serde.generated.mbt`.
+Run the generators before Moon. For example, for a package in `src/models`:
+
+```sh
+serde-gen --package src/models && serde-gen --validate --package src/models && moon check
+```
+
+Both commands discover annotated source files in the package without a file list. `--validate` writes `garde.generated.mbt` without changing `serde.generated.mbt`. See [package mode](reference.md#package-mode) for which files are included.
 
 ## Run validation
 
