@@ -199,18 +199,22 @@ fn decode_field(field : Field) -> @syntax.Expr {
       ],
     )
   } else {
-    match_expr(
+    let obj = ast_ident("obj")
+    let key = ast_string(field.wire_name)
+    let lookup = if field.aliases.is_empty() {
+      dot_call(obj, "get", [key])
+    } else {
       serde_call("field", [
-        ast_ident("obj"),
-        ast_string(field.wire_name),
+        obj,
+        key,
         string_array(field.aliases),
         ast_ident("path"),
-      ]),
-      [
-        (some, decode_field_value(field, value, field_path)),
-        (none, missing(field, field_path, ast_string(field.wire_name))),
-      ],
-    )
+      ])
+    }
+    match_expr(lookup, [
+      (some, decode_field_value(field, value, field_path)),
+      (none, missing(field, field_path, key)),
+    ])
   }
 }
 

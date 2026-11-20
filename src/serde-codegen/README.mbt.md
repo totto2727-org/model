@@ -215,7 +215,7 @@ pub impl @json.FromJson for Profile with fn from_json(value, path) {
     ],
     path,
   )
-  let f0 : String = match @serde.field(obj, "displayName", [], path) {
+  let f0 : String = match obj.get("displayName") {
     Some(value) => @json.from_json(value, path=path.add_key("displayName"))
     None => @serde.missing_field(path.add_key("displayName"), "displayName")
   }
@@ -227,12 +227,12 @@ pub impl @json.FromJson for Profile with fn from_json(value, path) {
     (Some(value), at, _) => @json.from_json(value, path=at)
     (None, at, key) => @serde.missing_field(at, key)
   }
-  let f3 : Int32 = match @serde.field(obj, "count", [], path) {
+  let f3 : Int32 = match obj.get("count") {
     Some(value) => @json.from_json(value, path=path.add_key("count"))
     None => Default::default()
   }
   let f4 : Int32 = Default::default()
-  let f5 : String? = match @serde.field(obj, "locale", [], path) {
+  let f5 : String? = match obj.get("locale") {
     Some(value) =>
       match value {
         Null => None
@@ -265,7 +265,7 @@ Generated decoder excerpt:
 
 ```mbt nocheck
 ///|
-let f0 : String = match @serde.field(obj, "displayName", [], path) {
+let f0 : String = match obj.get("displayName") {
   Some(value) => @json.from_json(value, path=path.add_key("displayName"))
   None => @serde.missing_field(path.add_key("displayName"), "displayName")
 }
@@ -322,7 +322,7 @@ Generated decoder excerpt:
 
 ```mbt nocheck
 ///|
-let f3 : Int32 = match @serde.field(obj, "count", [], path) {
+let f3 : Int32 = match obj.get("count") {
   Some(value) => @json.from_json(value, path=path.add_key("count"))
   None => Default::default()
 }
@@ -551,7 +551,7 @@ Generated decoder excerpt:
 
 ```mbt nocheck
 ///|
-let f0 : String = match @serde.field(obj, "token", [], path) {
+let f0 : String = match obj.get("token") {
   Some(value) => @json.from_json(value, path=path.add_key("token"))
   None => @serde.missing_field(path.add_key("token"), "token")
 }
@@ -560,7 +560,7 @@ let f0 : String = match @serde.field(obj, "token", [], path) {
 let f1 : Int32 = Default::default()
 
 ///|
-let f2 : Int32 = match @serde.field(obj, "priority", [], path) {
+let f2 : Int32 = match obj.get("priority") {
   Some(value) => @json.from_json(value, path=path.add_key("priority"))
   None => normal_priority()
 }

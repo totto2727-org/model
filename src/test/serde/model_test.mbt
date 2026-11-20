@@ -87,9 +87,15 @@ test "Record FromJson::from_json - alias decodes to canonical field" {
 }
 
 ///|
-test "panic_Record FromJson::from_json - required field is missing" {
-  try! ((@json.from_json({ "displayName": "Ada" }) : @roundtrip.Record)
-  |> ignore)
+test "Record FromJson::from_json - missing required field reports its key" {
+  let actual = try {
+    let _ : @roundtrip.Record = @json.from_json({ "displayName": "Ada" })
+    fail("expected missing field error")
+  } catch {
+    @json.JsonDecodeError((path, message)) => (path.to_string(), message)
+    error => raise error
+  }
+  assert_eq(actual, ("/required", "missing field: required"))
 }
 
 ///|
@@ -109,14 +115,19 @@ test "panic_Record FromJson::from_json - default does not replace explicit null"
 }
 
 ///|
-test "panic_Record FromJson::from_json - canonical and alias are duplicates" {
-  try! ((
-    @json.from_json({
+test "Record FromJson::from_json - duplicate alias reports the canonical key" {
+  let actual = try {
+    let _ : @roundtrip.Record = @json.from_json({
       "required": 7,
       "displayName": "Ada",
       "legacy_name": "Ada",
-    }) : @roundtrip.Record)
-  |> ignore)
+    })
+    fail("expected duplicate field error")
+  } catch {
+    @json.JsonDecodeError((path, message)) => (path.to_string(), message)
+    error => raise error
+  }
+  assert_eq(actual, ("/displayName", "duplicate field or alias: displayName"))
 }
 
 ///|

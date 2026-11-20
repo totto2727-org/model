@@ -10,7 +10,7 @@ pub impl ToJson for Address with fn to_json(self) {
 ///|
 pub impl @json.FromJson for Address with fn from_json(value, path) {
   let obj = @serde.object(value, path)
-  let f0 : String = match @serde.field(obj, "code", [], path) {
+  let f0 : String = match obj.get("code") {
     Some(value) => @json.from_json(value, path=path.add_key("code"))
     None => @serde.missing_field(path.add_key("code"), "code")
   }
@@ -44,15 +44,15 @@ pub impl ToJson for Account with fn to_json(self) {
 ///|
 pub impl @json.FromJson for Account with fn from_json(value, path) {
   let obj = @serde.object(value, path)
-  let f0 : String = match @serde.field(obj, "displayName", [], path) {
+  let f0 : String = match obj.get("displayName") {
     Some(value) => @json.from_json(value, path=path.add_key("displayName"))
     None => @serde.missing_field(path.add_key("displayName"), "displayName")
   }
-  let f1 : Int32 = match @serde.field(obj, "level", [], path) {
+  let f1 : Int32 = match obj.get("level") {
     Some(value) => @json.from_json(value, path=path.add_key("level"))
     None => @serde.missing_field(path.add_key("level"), "level")
   }
-  let f2 : String? = match @serde.field(obj, "contact", [], path) {
+  let f2 : String? = match obj.get("contact") {
     Some(value) =>
       match value {
         Null => None
@@ -61,7 +61,7 @@ pub impl @json.FromJson for Account with fn from_json(value, path) {
       }
     None => None
   }
-  let f3 : Address? = match @serde.field(obj, "address", [], path) {
+  let f3 : Address? = match obj.get("address") {
     Some(value) =>
       match value {
         Null => None
@@ -70,11 +70,11 @@ pub impl @json.FromJson for Account with fn from_json(value, path) {
       }
     None => None
   }
-  let f4 : Array[Address] = match @serde.field(obj, "locations", [], path) {
+  let f4 : Array[Address] = match obj.get("locations") {
     Some(value) => @json.from_json(value, path=path.add_key("locations"))
     None => @serde.missing_field(path.add_key("locations"), "locations")
   }
-  let f5 : String = match @serde.field(obj, "notes", [], path) {
+  let f5 : String = match obj.get("notes") {
     Some(value) => @json.from_json(value, path=path.add_key("notes"))
     None => @serde.missing_field(path.add_key("notes"), "notes")
   }
@@ -133,11 +133,11 @@ pub impl[T : @json.FromJson, U : @json.FromJson] @json.FromJson for Batch[T, U] 
   path,
 ) {
   let obj = @serde.object(value, path)
-  let f0 : Array[T] = match @serde.field(obj, "items", [], path) {
+  let f0 : Array[T] = match obj.get("items") {
     Some(value) => @json.from_json(value, path=path.add_key("items"))
     None => @serde.missing_field(path.add_key("items"), "items")
   }
-  let f1 : U = match @serde.field(obj, "metadata", [], path) {
+  let f1 : U = match obj.get("metadata") {
     Some(value) => @json.from_json(value, path=path.add_key("metadata"))
     None => @serde.missing_field(path.add_key("metadata"), "metadata")
   }
@@ -202,7 +202,7 @@ fn[T] serde_decode_Entry_2(
   path : @json.JsonPath,
 ) -> Entry[T] raise @json.JsonDecodeError {
   let obj = @serde.object(value, path)
-  let f0 : String = match @serde.field(obj, "label", [], path) {
+  let f0 : String = match obj.get("label") {
     Some(value) => @json.from_json(value, path=path.add_key("label"))
     None => @serde.missing_field(path.add_key("label"), "label")
   }
@@ -257,7 +257,7 @@ pub impl ToJson for Allocation with fn to_json(self) {
 ///|
 pub impl @json.FromJson for Allocation with fn from_json(value, path) {
   let obj = @serde.object(value, path)
-  let f0 : Int32 = match @serde.field(obj, "count", [], path) {
+  let f0 : Int32 = match obj.get("count") {
     Some(value) => @json.from_json(value, path=path.add_key("count"))
     None => @serde.missing_field(path.add_key("count"), "count")
   }
@@ -274,8 +274,7 @@ pub impl ToJson for Request with fn to_json(self) {
 ///|
 pub impl @json.FromJson for Request with fn from_json(value, path) {
   let obj = @serde.object(value, path)
-  let f0 : Array[Allocation] = match
-    @serde.field(obj, "allocations", [], path) {
+  let f0 : Array[Allocation] = match obj.get("allocations") {
     Some(value) => @json.from_json(value, path=path.add_key("allocations"))
     None => @serde.missing_field(path.add_key("allocations"), "allocations")
   }
@@ -305,7 +304,7 @@ pub impl ToJson for Confirmation with fn to_json(self) {
 ///|
 pub impl @json.FromJson for Confirmation with fn from_json(value, path) {
   let obj = @serde.object(value, path)
-  let f0 : String? = match @serde.field(obj, "repeatedCode", [], path) {
+  let f0 : String? = match obj.get("repeatedCode") {
     Some(value) =>
       match value {
         Null => None
@@ -314,7 +313,7 @@ pub impl @json.FromJson for Confirmation with fn from_json(value, path) {
       }
     None => None
   }
-  let f1 : String? = match @serde.field(obj, "code", [], path) {
+  let f1 : String? = match obj.get("code") {
     Some(value) =>
       match value {
         Null => None
@@ -365,19 +364,19 @@ pub impl ToJson for ContactDetails with fn to_json(self) {
 ///|
 pub impl @json.FromJson for ContactDetails with fn from_json(value, path) {
   let obj = @serde.object(value, path)
-  let f0 : String = match @serde.field(obj, "email", [], path) {
+  let f0 : String = match obj.get("email") {
     Some(value) => @json.from_json(value, path=path.add_key("email"))
     None => @serde.missing_field(path.add_key("email"), "email")
   }
-  let f1 : String = match @serde.field(obj, "website", [], path) {
+  let f1 : String = match obj.get("website") {
     Some(value) => @json.from_json(value, path=path.add_key("website"))
     None => @serde.missing_field(path.add_key("website"), "website")
   }
-  let f2 : Array[String] = match @serde.field(obj, "addresses", [], path) {
+  let f2 : Array[String] = match obj.get("addresses") {
     Some(value) => @json.from_json(value, path=path.add_key("addresses"))
     None => @serde.missing_field(path.add_key("addresses"), "addresses")
   }
-  let f3 : String? = match @serde.field(obj, "v4", [], path) {
+  let f3 : String? = match obj.get("v4") {
     Some(value) =>
       match value {
         Null => None
@@ -385,7 +384,7 @@ pub impl @json.FromJson for ContactDetails with fn from_json(value, path) {
       }
     None => None
   }
-  let f4 : String? = match @serde.field(obj, "v6", [], path) {
+  let f4 : String? = match obj.get("v6") {
     Some(value) =>
       match value {
         Null => None
@@ -393,7 +392,7 @@ pub impl @json.FromJson for ContactDetails with fn from_json(value, path) {
       }
     None => None
   }
-  let f5 : String? = match @serde.field(obj, "card", [], path) {
+  let f5 : String? = match obj.get("card") {
     Some(value) =>
       match value {
         Null => None
@@ -401,7 +400,7 @@ pub impl @json.FromJson for ContactDetails with fn from_json(value, path) {
       }
     None => None
   }
-  let f6 : String? = match @serde.field(obj, "phone", [], path) {
+  let f6 : String? = match obj.get("phone") {
     Some(value) =>
       match value {
         Null => None
