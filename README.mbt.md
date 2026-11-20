@@ -56,11 +56,12 @@ moon add totto2727/serde
 
 ### Run without installing
 
+Use `moonx` once `totto2727/serde-gen` is available on Mooncakes, or use Nix:
+
 ```sh
+moonx totto2727/serde-gen --help
 nix run github:totto2727-org/serde -- --help
 ```
-
-If `serde-gen` is available on Mooncakes, you can also run `moonx totto2727/serde-gen --help`.
 
 ### Install
 
@@ -116,7 +117,13 @@ For example:
 serde-gen --package src && moon check
 ```
 
-Use `moonx totto2727/serde-gen --package src` when the CLI is available on Mooncakes.
+Once the CLI is available on Mooncakes, use `moonx` without installing `serde-gen`.
+For example, if your models are in the `src/models` package:
+
+```sh
+moonx totto2727/serde-gen --package src/models && moon check
+```
+
 Pass the package directory, not a list of model files.
 
 ## API
