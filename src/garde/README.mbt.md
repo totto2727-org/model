@@ -11,11 +11,63 @@ The report uses MoonBit field names, not JSON keys set by Serde.
 Call `report.violations()` to read the individual violations and `issue.path.segments()` to read their typed `Field` and `Index` segments.
 This library follows Rust garde's explicit validation model, but does not implement the full Rust rule set.
 
-Each section shows a minimal annotated model, the generated MoonBit code or the relevant excerpt, and behavior that is not visible from the code alone.
-The examples use the standard MoonBit formatting.
-Place the input examples in the same package to use them together.
+## Validate after decoding
 
-## `#custom.garde`, `required`, `length`, `range`, and `skip`
+Add both attributes when a type needs a JSON codec and a validator:
+
+```mbt nocheck
+///|
+#custom.serde
+#custom.garde
+pub(all) struct Signup {
+  #custom.serde(rename="displayName")
+  #custom.garde(length(min="3"))
+  name : String
+  #custom.garde(length(min="1"))
+  email : String
+  #custom.garde(inner(length(min="1")))
+  roles : Array[String]
+}
+```
+
+Import `moonbitlang/core/json`, `totto2727/serde`, and `totto2727/serde/garde` in the model package.
+From the module root, run:
+
+```sh
+serde-gen --package src/models && moon check
+```
+
+The generated `ToJson` and `FromJson` implementations handle JSON.
+The generated `Validate` implementation checks field values.
+For example, it checks `email` as follows:
+
+```mbt nocheck
+    let garde_value = garde_self.email
+    let garde_path = garde_path.field("email")
+    if @garde.length(garde_value, Some(1), None) is Some(message) {
+      garde_report.add(garde_path, message)
+    }
+```
+
+Call validation after decoding:
+
+```mbt nocheck
+///|
+fn check_signup(input : Json) -> Result[Unit, @garde.Report] raise {
+  let signup : Signup = @json.from_json(input)
+  @garde.validate(signup)
+}
+```
+
+For `{ "displayName": "x", "email": "", "roles": [""] }`, decoding succeeds, then validation reports `name`, `email`, and `roles[0]`.
+A missing `email` fails during decoding because its type is `String`.
+
+## Attribute reference
+
+Each example shows an annotated model, the generated MoonBit code or the relevant excerpt, and behavior that is not visible from the code alone.
+The examples use the standard MoonBit formatting.
+
+### `#custom.garde`, `required`, `length`, `range`, and `skip`
 
 The type marker generates an implementation of `@garde.Validate`.
 By default, a field must have a validation rule or `skip`.
@@ -79,7 +131,7 @@ pub impl @garde.Validate for Contact with fn collect(
 Use quoted decimal bounds with `length` and `range`: `min`, `max`, both, or `equal` alone. The MoonBit attribute parser does not accept bare integers in these rules.
 Use `skip` alone on a field, payload, or variant.
 
-## `ascii`, `alphanumeric`, `contains`, `prefix`, `suffix`, and `custom`
+### `ascii`, `alphanumeric`, `contains`, `prefix`, `suffix`, and `custom`
 
 `ascii` accepts only ASCII characters, and `alphanumeric` accepts only ASCII letters and digits.
 Use `length(min="1")` if an empty string should also fail.
@@ -139,7 +191,7 @@ Each rule can add a separate violation to the same field path.
   }
 ```
 
-## `allow_unvalidated`, `dive`, and `inner`
+### `allow_unvalidated`, `dive`, and `inner`
 
 Use `allow_unvalidated` on a type or variant to permit unmarked fields.
 Use `dive` to run the nested type's `Validate` implementation.
@@ -181,7 +233,7 @@ pub impl @garde.Validate for Directory with fn collect(
 }
 ```
 
-## `field(index=...)` and `field(name=...)`
+### `field(index=...)` and `field(name=...)`
 
 Set `index` to a quoted, zero-based index for a tuple or positional enum payload.
 Set `name` to a label for a named enum payload.
@@ -246,7 +298,7 @@ pub impl[T : @garde.Validate] @garde.Validate for Update[T] with fn collect(
 }
 ```
 
-## `bounds`
+### `bounds`
 
 A direct `length` check on `T` adds a `Length` bound.
 Use `bounds` to specify a parameter's bounds when the needed traits cannot be inferred, for example when `dive` targets a wrapper around `T`.
@@ -274,7 +326,7 @@ pub impl[T :  @garde.Length] @garde.Validate for Sized[T] with fn collect(
 pub impl[T :  @garde.Length] @garde.Validate for Envelope[T] with fn collect(
 ```
 
-## `context`, `custom_with`, and `dive_with`
+### `context`, `custom_with`, and `dive_with`
 
 Use `context=Policy` to generate `validate_with` and `collect_with` methods instead of a `Validate` implementation.
 `custom_with(check_count)` passes the field value and the context to `check_count`.

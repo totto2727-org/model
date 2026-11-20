@@ -4,7 +4,7 @@ Serde generates JSON encoders and decoders for MoonBit types.
 Add `#custom.serde` to a type to control how it reads and writes JSON.
 
 This project is inspired by Rust's [Serde](https://serde.rs/) for serialization and [garde](https://docs.rs/garde/latest/garde/) for validation.
-For a walkthrough of validation after decoding, see [Validate a decoded value](https://github.com/totto2727-org/serde/blob/main/docs/validation.md).
+For a walkthrough of validation after decoding, see the [Garde package documentation](https://mooncakes.io/docs/totto2727/serde/garde).
 
 ## Usage
 
@@ -119,13 +119,6 @@ For example:
 serde-gen --package src && moon check
 ```
 
-Once the CLI is available on Mooncakes, use `moonx` without installing `serde-gen`.
-For example, if your models are in the `src/models` package:
-
-```sh
-moonx totto2727/serde-gen --package src/models && moon check
-```
-
 Pass the package directory, not a list of model files.
 
 ## API
@@ -136,7 +129,7 @@ Use the Mooncakes version selector to read the documentation for the version you
 - [Serde attributes](https://mooncakes.io/docs/totto2727/serde/codegen): `#custom.serde` examples and generated codec excerpts.
 - [Garde API and attributes](https://mooncakes.io/docs/totto2727/serde/garde): Validation types, `#custom.garde` examples, and generated validator excerpts. Select a release that includes Garde.
 
-For command-line options, see the [`serde-gen` reference](https://github.com/totto2727-org/serde/blob/main/docs/reference.md).
+For command-line options, see the [`serde-gen` package README](https://mooncakes.io/docs/totto2727/serde-gen) after the CLI release is available on Mooncakes.
 
 ## Development
 
