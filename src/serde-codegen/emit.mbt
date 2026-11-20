@@ -166,6 +166,36 @@ fn decode_field_value(
 }
 
 ///|
+fn scalar_success_cases(
+  field : Field,
+) -> Array[(@syntax.Pattern, @syntax.Expr)] {
+  // Only direct, reserved builtin types without a user decoder can skip the context.
+  guard field.deserialize_with is None &&
+    field.ty is Name(constr_id={ id: Ident(name~), .. }, tys~, ..) &&
+    tys.is_empty() else {
+    return []
+  }
+  fn present(pat : @syntax.Pattern) -> @syntax.Pattern {
+    variant_pat("Some", [(None, pat)])
+  }
+  match name {
+    "String" =>
+      [
+        (
+          present(variant_pat("String", [(None, ast_bind("value"))])),
+          ast_ident("value"),
+        ),
+      ]
+    "Bool" =>
+      [true, false].map(flag => {
+        let pat = present(variant_pat(if flag { "True" } else { "False" }, []))
+        (pat, @syntax.Expr::Constant(c=Bool(flag), loc=@syntax.no_location))
+      })
+    _ => []
+  }
+}
+
+///|
 fn decode_field(field : Field) -> @syntax.Expr {
   let field_path = key_path(field.wire_name)
   let value = ast_ident("value")
@@ -211,10 +241,10 @@ fn decode_field(field : Field) -> @syntax.Expr {
         ast_ident("path"),
       ])
     }
-    match_expr(lookup, [
-      (some, decode_field_value(field, value, field_path)),
-      (none, missing(field, field_path, key)),
-    ])
+    let cases = scalar_success_cases(field)
+    cases.push((some, decode_field_value(field, value, field_path)))
+    cases.push((none, missing(field, field_path, key)))
+    match_expr(lookup, cases)
   }
 }
 

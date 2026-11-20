@@ -164,12 +164,11 @@ fn deny_unknown_at(
 ) -> Unit raise @json.JsonDecodeError {
   for key, value in fields {
     let matching = paths.filter(keys => keys[depth] == key)
-    let field_path = path.add_key(key)
     if matching.is_empty() {
-      invalid(field_path, "unknown field: \{key}")
+      invalid(path.add_key(key), "unknown field: \{key}")
     }
     if value is Object(child) && matching[0].length() > depth + 1 {
-      deny_unknown_at(child, matching, field_path, depth + 1)
+      deny_unknown_at(child, matching, path.add_key(key), depth + 1)
     }
   }
 }

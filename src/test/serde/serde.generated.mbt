@@ -47,6 +47,7 @@ pub impl @json.FromJson for Record with fn from_json(value, path) {
   }
   let f3 : String = match
     @serde.field(obj, "displayName", ["legacy_name"], path) {
+    Some(String(value)) => value
     Some(value) => @json.from_json(value, path=path.add_key("displayName"))
     None => @serde.missing_field(path.add_key("displayName"), "displayName")
   }
@@ -100,10 +101,12 @@ pub impl ToJson for CamelRecord with fn to_json(self) {
 pub impl @json.FromJson for CamelRecord with fn from_json(value, path) {
   let obj = @serde.object(value, path)
   let f0 : String = match obj.get("firstName") {
+    Some(String(value)) => value
     Some(value) => @json.from_json(value, path=path.add_key("firstName"))
     None => @serde.missing_field(path.add_key("firstName"), "firstName")
   }
   let f1 : String = match obj.get("fixed_name") {
+    Some(String(value)) => value
     Some(value) => @json.from_json(value, path=path.add_key("fixed_name"))
     None => @serde.missing_field(path.add_key("fixed_name"), "fixed_name")
   }
@@ -178,6 +181,7 @@ fn serde_decode_External_3(
 ) -> External raise @json.JsonDecodeError {
   let obj = @serde.object(value, path)
   let f0 : String = match obj.get("label") {
+    Some(String(value)) => value
     Some(value) => @json.from_json(value, path=path.add_key("label"))
     None => @serde.missing_field(path.add_key("label"), "label")
   }
@@ -559,6 +563,7 @@ fn serde_decode_DecodeOnlyEvent_2(
 ) -> DecodeOnlyEvent raise @json.JsonDecodeError {
   let obj = @serde.object(value, path)
   let f0 : String = match obj.get("text") {
+    Some(String(value)) => value
     Some(value) => @json.from_json(value, path=path.add_key("text"))
     None => @serde.missing_field(path.add_key("text"), "text")
   }
@@ -723,6 +728,7 @@ pub impl @json.FromJson for FixedPath with fn from_json(value, path) {
     (None, _, _) => None
   }
   let f5 : String = match @serde.field(obj, "label", ["legacy"], path) {
+    Some(String(value)) => value
     Some(value) => @json.from_json(value, path=path.add_key("label"))
     None => @serde.missing_field(path.add_key("label"), "label")
   }
@@ -1179,4 +1185,25 @@ impl @json.FromJson for FlattenedModel with fn from_json(value, path) {
     (None, at, key) => @serde.missing_field(at, key)
   }
   { extra: f0, identifier: f1, active: f2, }
+}
+
+///|
+impl @json.FromJson for ScalarPaths with fn from_json(value, path) {
+  let obj = @serde.object(value, path)
+  let f0 : String = match obj.get("a/b~c") {
+    Some(String(value)) => value
+    Some(value) => @json.from_json(value, path=path.add_key("a/b~c"))
+    None => @serde.missing_field(path.add_key("a/b~c"), "a/b~c")
+  }
+  let f1 : Bool = match obj.get("active") {
+    Some(True) => true
+    Some(False) => false
+    Some(value) => @json.from_json(value, path=path.add_key("active"))
+    None => @serde.missing_field(path.add_key("active"), "active")
+  }
+  let f2 : String = match obj.get("label") {
+    Some(value) => decode_at_label(value, path.add_key("label"))
+    None => @serde.missing_field(path.add_key("label"), "label")
+  }
+  { text: f0, active: f1, label: f2, }
 }

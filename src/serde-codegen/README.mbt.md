@@ -216,10 +216,12 @@ pub impl @json.FromJson for Profile with fn from_json(value, path) {
     path,
   )
   let f0 : String = match obj.get("displayName") {
+    Some(String(value)) => value
     Some(value) => @json.from_json(value, path=path.add_key("displayName"))
     None => @serde.missing_field(path.add_key("displayName"), "displayName")
   }
   let f1 : String = match @serde.field(obj, "email", ["mail"], path) {
+    Some(String(value)) => value
     Some(value) => @json.from_json(value, path=path.add_key("email"))
     None => @serde.missing_field(path.add_key("email"), "email")
   }
@@ -266,6 +268,7 @@ Generated decoder excerpt:
 ```mbt nocheck
 ///|
 let f0 : String = match obj.get("displayName") {
+  Some(String(value)) => value
   Some(value) => @json.from_json(value, path=path.add_key("displayName"))
   None => @serde.missing_field(path.add_key("displayName"), "displayName")
 }
@@ -286,6 +289,7 @@ Generated encoder and decoder excerpts:
 ```mbt nocheck
 ///|
 let f1 : String = match @serde.field(obj, "email", ["mail"], path) {
+  Some(String(value)) => value
   Some(value) => @json.from_json(value, path=path.add_key("email"))
   None => @serde.missing_field(path.add_key("email"), "email")
 }
@@ -552,6 +556,7 @@ Generated decoder excerpt:
 ```mbt nocheck
 ///|
 let f0 : String = match obj.get("token") {
+  Some(String(value)) => value
   Some(value) => @json.from_json(value, path=path.add_key("token"))
   None => @serde.missing_field(path.add_key("token"), "token")
 }

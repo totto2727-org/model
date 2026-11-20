@@ -11,6 +11,7 @@ pub impl ToJson for Address with fn to_json(self) {
 pub impl @json.FromJson for Address with fn from_json(value, path) {
   let obj = @serde.object(value, path)
   let f0 : String = match obj.get("code") {
+    Some(String(value)) => value
     Some(value) => @json.from_json(value, path=path.add_key("code"))
     None => @serde.missing_field(path.add_key("code"), "code")
   }
@@ -45,6 +46,7 @@ pub impl ToJson for Account with fn to_json(self) {
 pub impl @json.FromJson for Account with fn from_json(value, path) {
   let obj = @serde.object(value, path)
   let f0 : String = match obj.get("displayName") {
+    Some(String(value)) => value
     Some(value) => @json.from_json(value, path=path.add_key("displayName"))
     None => @serde.missing_field(path.add_key("displayName"), "displayName")
   }
@@ -75,6 +77,7 @@ pub impl @json.FromJson for Account with fn from_json(value, path) {
     None => @serde.missing_field(path.add_key("locations"), "locations")
   }
   let f5 : String = match obj.get("notes") {
+    Some(String(value)) => value
     Some(value) => @json.from_json(value, path=path.add_key("notes"))
     None => @serde.missing_field(path.add_key("notes"), "notes")
   }
@@ -203,6 +206,7 @@ fn[T] serde_decode_Entry_2(
 ) -> Entry[T] raise @json.JsonDecodeError {
   let obj = @serde.object(value, path)
   let f0 : String = match obj.get("label") {
+    Some(String(value)) => value
     Some(value) => @json.from_json(value, path=path.add_key("label"))
     None => @serde.missing_field(path.add_key("label"), "label")
   }
@@ -365,10 +369,12 @@ pub impl ToJson for ContactDetails with fn to_json(self) {
 pub impl @json.FromJson for ContactDetails with fn from_json(value, path) {
   let obj = @serde.object(value, path)
   let f0 : String = match obj.get("email") {
+    Some(String(value)) => value
     Some(value) => @json.from_json(value, path=path.add_key("email"))
     None => @serde.missing_field(path.add_key("email"), "email")
   }
   let f1 : String = match obj.get("website") {
+    Some(String(value)) => value
     Some(value) => @json.from_json(value, path=path.add_key("website"))
     None => @serde.missing_field(path.add_key("website"), "website")
   }
