@@ -231,6 +231,50 @@ pub struct WithSkipped[T, U] {
 }
 
 ///|
+#custom.serde
+pub(all) struct DirectionalFields[Read, Write, Scratch] {
+  #custom.serde(skip_serializing, aliases="legacy_input")
+  input : Read?
+  #custom.serde(skip_deserializing, default="empty_option")
+  output : Write?
+  #custom.serde(skip, default="empty_array")
+  scratch : Array[Scratch]
+}
+
+///|
+fn[T] empty_option() -> T? {
+  None
+}
+
+///|
+fn[T] empty_array() -> Array[T] {
+  []
+}
+
+///|
+#custom.serde(deny_unknown_fields)
+pub(all) struct CallableFields {
+  #custom.serde(path=["settings", "value"], default="fallback_value", skip_serializing_if="CallableFields::omit_value")
+  value : Int32?
+  #custom.serde(skip_deserializing, aliases="old_status")
+  status : Int32
+  #custom.serde(skip, default="fallback_value")
+  hidden : Int32?
+  #custom.serde(default)
+  legacy_optional : Int32?
+}
+
+///|
+fn fallback_value() -> Int32? {
+  Some(42)
+}
+
+///|
+fn CallableFields::omit_value(value : Int32?) -> Bool {
+  value == Some(0)
+}
+
+///|
 priv struct Code(Int32)
 
 ///|

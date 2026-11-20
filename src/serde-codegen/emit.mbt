@@ -134,9 +134,11 @@ fn missing(
   path : @syntax.Expr,
   key : @syntax.Expr,
 ) -> @syntax.Expr {
-  if field.optional {
+  if field.default_with is Some(hook) {
+    call(hook_expr(hook), [])
+  } else if field.optional {
     variant_expr("None", [])
-  } else if field.default || field.skip {
+  } else if field.default || field.skip || field.skip_deserializing {
     call(ast_method("Default", "default"), [])
   } else {
     serde_call("missing_field", [path, key])
@@ -171,11 +173,13 @@ fn decode_field(field : Field) -> @syntax.Expr {
   let none = variant_pat("None", [])
   if field.flatten {
     decode_value(ast_ident("remaining"), ast_ident("path"), 0)
-  } else if field.skip {
+  } else if field.skip || field.skip_deserializing {
     missing(field, field_path, ast_string(field.wire_name))
   } else if !field.path.is_empty() {
     let at = ast_ident("at")
-    let missing_parts = if field.optional || field.default {
+    let missing_parts = if field.optional ||
+      field.default ||
+      field.default_with is Some(_) {
       [none, ast_any(), ast_any()]
     } else {
       [none, ast_bind("at"), ast_bind("key")]
@@ -214,6 +218,9 @@ fn decode_field(field : Field) -> @syntax.Expr {
 fn deny_unknown(fields : Array[Field]) -> @syntax.Expr {
   let allowed : Array[Array[String]] = []
   for field in fields {
+    if field.skip_deserializing {
+      continue
+    }
     allowed.push(
       if field.path.is_empty() {
         [field.wire_name]
@@ -225,7 +232,7 @@ fn deny_unknown(fields : Array[Field]) -> @syntax.Expr {
       allowed.push([alternate])
     }
   }
-  if fields.all(field => field.path.is_empty()) {
+  if allowed.all(keys => keys.length() == 1) {
     serde_call("deny_unknown", [
       ast_ident("obj"),
       string_array(allowed.map(keys => keys[0])),
@@ -241,10 +248,11 @@ fn deny_unknown(fields : Array[Field]) -> @syntax.Expr {
 }
 
 ///|
-fn direct_keys(fields : Array[Field]) -> @syntax.Expr {
+fn direct_keys(fields : Array[Field], decode~ : Bool) -> @syntax.Expr {
   let keys = []
   for field in fields {
-    if !field.flatten {
+    if !field.flatten &&
+      !(if decode { field.skip_deserializing } else { field.skip_serializing }) {
       keys.push(
         if field.path.is_empty() {
           field.wire_name
@@ -282,7 +290,10 @@ fn decode_fields(
   if fields.any(field => field.flatten) {
     body = ast_let(
       ast_bind("remaining"),
-      serde_call("flattened_remainder", [ast_ident("obj"), direct_keys(fields)]),
+      serde_call("flattened_remainder", [
+        ast_ident("obj"),
+        direct_keys(fields, decode=true),
+      ]),
       body,
     )
   }
@@ -298,7 +309,7 @@ fn encode_fields(fields : Array[Field], record : Bool) -> Array[@syntax.Expr] {
   let writes = []
   let obj = ast_ident("obj")
   for i, field in fields {
-    if field.skip {
+    if field.skip || field.skip_serializing {
       continue
     }
     let value = if record {
@@ -311,7 +322,11 @@ fn encode_fields(fields : Array[Field], record : Bool) -> Array[@syntax.Expr] {
       None => encode_value(value, field.option_depth)
     }
     let write = if field.flatten {
-      serde_call("write_flattened", [obj, encoded, direct_keys(fields)])
+      serde_call("write_flattened", [
+        obj,
+        encoded,
+        direct_keys(fields, decode=false),
+      ])
     } else if field.path.is_empty() {
       dot_call(obj, "set", [ast_string(field.wire_name), encoded])
     } else {
@@ -320,6 +335,16 @@ fn encode_fields(fields : Array[Field], record : Bool) -> Array[@syntax.Expr] {
     writes.push(
       if field.omit_none {
         ast_if(ast_is(value, variant_pat("Some", [(None, ast_any())])), write)
+      } else if field.skip_serializing_if is Some(hook) {
+        let predicate = call(hook_expr(hook), [value])
+        ast_if(
+          ast_infix(
+            "==",
+            predicate,
+            Constant(c=Bool(false), loc=@syntax.no_location),
+          ),
+          write,
+        )
       } else {
         write
       },
@@ -399,11 +424,15 @@ fn field_quantifiers(
   let defaults = []
   for field in fields {
     if !field.skip &&
+      !(if decode { field.skip_deserializing } else { field.skip_serializing }) &&
       (if decode { field.deserialize_with } else { field.serialize_with })
       is None {
       types.push(field.ty)
     }
-    if decode && !field.optional && (field.skip || field.default) {
+    if decode &&
+      !field.optional &&
+      field.default_with is None &&
+      (field.skip || field.skip_deserializing || field.default) {
       defaults.push(field.ty)
     }
   }

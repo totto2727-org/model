@@ -316,7 +316,7 @@ let f2 : String = match @serde.read_path(obj, ["meta", "status"], path) {
 
 #### `default`: fill a missing field
 
-`default` calls `Default::default()` when a key is missing. JSON `null` is still passed to the field decoder.
+Bare `default` calls `Default::default()` when a key is missing, or returns `None` for an optional field. Use `default="make_value"` to call a zero-argument function that returns the declared field type. This also lets an absent optional field default to `Some(...)`. A present JSON `null` still goes through the field decoder.
 
 Generated decoder excerpt:
 
@@ -339,9 +339,15 @@ Generated decoder excerpt:
 let f4 : Int32 = Default::default()
 ```
 
-#### `skip_serializing_if`: omit an empty optional field
+Use `skip_serializing` to omit the field from output without changing how input is decoded. Use `skip_deserializing` to ignore input for the field without changing its output. Both `skip` and `skip_deserializing` use a callable `default` if one is given. Otherwise, they use `None` for an optional field and `Default::default()` for other fields.
 
-The supported predicate is `skip_serializing_if="Option::is_none"`. It omits `locale` when it is `None`. Without this attribute, the encoder writes `null`. In both cases, a missing key or JSON `null` decodes as `None`.
+#### `skip_serializing_if`: omit a field conditionally
+
+Use `skip_serializing_if="should_omit"` to call a function with the declared field value, including the `Option` wrapper if present. The function returns `Bool`. If it returns `true`, the encoder omits the key without calling the field serializer. This option does not change decoding.
+
+`skip_serializing_if="Option::is_none"` is available only on optional fields. It omits `locale` when it is `None`. Without this attribute, the encoder writes `null`. Unless a callable default is specified, both a missing key and JSON `null` decode as `None`.
+
+Callable defaults and predicates accept the same name syntax as codec hooks: `func`, `Type::method`, `@pkg.func`, and `@pkg.Type::method`.
 For a nested `Option`, `None` and `Some(None)` both encode as `null` when written, and `null` decodes back as `None`.
 At the first non-optional type, Serde uses that type's own codec. For example, the array codec handles `Array[T?]`.
 
@@ -361,7 +367,7 @@ Generated encoder excerpt:
 
 #### `deny_unknown_fields`: reject unrecognized keys
 
-The decoder accepts canonical names, read aliases, and the declared object paths. A skipped field name is accepted but its value is ignored. When a record has nested paths, the check also applies to the parent objects on those paths.
+The decoder accepts canonical names, read aliases, and the declared object paths. It accepts but ignores fields marked with `skip`. It rejects input keys, aliases, and paths for fields marked with `skip_deserializing`. When a record has nested paths, the check also applies to the parent objects on those paths.
 
 Generated decoder excerpt:
 
@@ -505,6 +511,61 @@ Generated decoder excerpt:
 Do not combine `codec` with either individual hook on the same field.
 The field type does not need to implement the JSON traits in the directions provided by hooks.
 
+#### Combine directional skips and callable options
+
+```mbt nocheck
+///|
+#custom.serde
+struct JobSettings {
+  #custom.serde(skip_serializing)
+  token : String
+  #custom.serde(skip_deserializing)
+  retries : Int32
+  #custom.serde(default="normal_priority", skip_serializing_if="is_normal_priority")
+  priority : Int32
+}
+
+///|
+fn normal_priority() -> Int32 {
+  10
+}
+
+///|
+fn is_normal_priority(value : Int32) -> Bool {
+  value == normal_priority()
+}
+```
+
+The encoder never writes `token`. The decoder requires `token`, ignores a supplied `retries`, and calls `normal_priority()` only if `priority` is missing.
+
+Generated encoder excerpt:
+
+```mbt nocheck
+  obj.set("retries", ToJson::to_json(self.retries))
+  if is_normal_priority(self.priority) == false {
+    obj.set("priority", ToJson::to_json(self.priority))
+  }
+```
+
+Generated decoder excerpt:
+
+```mbt nocheck
+///|
+let f0 : String = match @serde.field(obj, "token", [], path) {
+  Some(value) => @json.from_json(value, path=path.add_key("token"))
+  None => @serde.missing_field(path.add_key("token"), "token")
+}
+
+///|
+let f1 : Int32 = Default::default()
+
+///|
+let f2 : Int32 = match @serde.field(obj, "priority", [], path) {
+  Some(value) => @json.from_json(value, path=path.add_key("priority"))
+  None => normal_priority()
+}
+```
+
 ### Enum options
 
 A single positional argument writes its value. Multiple positional arguments write a JSON array. Named arguments write a JSON object.
@@ -641,8 +702,7 @@ Use a tagged representation if more than one variant can decode the same JSON va
 
 ### Generic models
 
-The generator adds `ToJson` and `@json.FromJson` bounds for the necessary type parameters in each direction. A `default` or `skip` rule can also require `Default`.
-A skipped field does not require a JSON trait.
+The generator adds `ToJson` and `@json.FromJson` bounds for the necessary type parameters in each direction. A field does not require the JSON trait for a direction it skips. A fallback to `Default::default()` can require `Default`, but a callable default does not add that bound.
 
 ```mbt nocheck
 ///|

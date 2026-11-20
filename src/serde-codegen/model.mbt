@@ -73,8 +73,12 @@ pub(all) struct Field {
   optional : Bool
   option_depth : Int32
   default : Bool
+  default_with : Hook?
   skip : Bool
+  skip_serializing : Bool
+  skip_deserializing : Bool
   omit_none : Bool
+  skip_serializing_if : Hook?
   flatten : Bool
   serialize_with : Hook?
   deserialize_with : Hook?

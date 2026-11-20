@@ -549,6 +549,65 @@ test "generic directional bounds - decode_only and skipped fields do not require
 priv struct ToJsonOnly(Int32)
 
 ///|
+priv enum NoCodec {
+  NoCodec
+}
+
+///|
+test "field skips require codec traits only in the active direction" {
+  let read : @roundtrip.DirectionalFields[
+    @roundtrip.ReadOnlyBox[Int32],
+    NoCodec,
+    NoCodec,
+  ] = @json.from_json({ "legacy_input": 4, "output": "ignored" })
+  assert_true(read.input is Some(_))
+  assert_true(read.output is None)
+  assert_eq(read.scratch.length(), 0)
+  let write : @roundtrip.DirectionalFields[NoCodec, ToJsonOnly, NoCodec] = {
+    input: Some(NoCodec),
+    output: Some(ToJsonOnly(9)),
+    scratch: [],
+  }
+  assert_eq(ToJson::to_json(write), { "output": 9 })
+  assert_true(write.input is Some(NoCodec))
+}
+
+///|
+test "callable default fills absent values but not explicit null" {
+  let missing : @roundtrip.CallableFields = @json.from_json({
+    "hidden": "ignored",
+  })
+  assert_eq(missing.value, Some(42))
+  assert_eq(missing.hidden, Some(42))
+  assert_eq(missing.legacy_optional, None)
+  assert_eq(missing.status, 0)
+  let explicit : @roundtrip.CallableFields = @json.from_json({
+    "settings": { "value": null },
+  })
+  assert_eq(explicit.value, None)
+  assert_eq(ToJson::to_json(explicit), {
+    "settings": { "value": null },
+    "status": 0,
+    "legacy_optional": null,
+  })
+  let zero : @roundtrip.CallableFields = @json.from_json({
+    "settings": { "value": 0 },
+  })
+  assert_eq(ToJson::to_json(zero), { "status": 0, "legacy_optional": null })
+}
+
+///|
+test "skip_deserializing excludes the key and alias from deny_unknown_fields" {
+  for key in ["status", "old_status"] {
+    let input : Json = Json::object(Map([(key, Json::number(7.0))]))
+    let decoded : @roundtrip.CallableFields? = Some(@json.from_json(input)) catch {
+      _ => None
+    }
+    assert_true(decoded is None)
+  }
+}
+
+///|
 impl ToJson for ToJsonOnly with fn to_json(self) {
   let ToJsonOnly(value) = self
   ToJson::to_json(value)

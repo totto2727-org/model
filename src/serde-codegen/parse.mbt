@@ -180,8 +180,9 @@ fn option_depth(ty : @syntax.Type) -> Int32 {
 ///|
 fn field_attributes() -> Array[String] {
   [
-    "rename", "aliases", "default", "skip", "skip_serializing_if", "path", "serialize_with",
-    "deserialize_with", "codec", "flatten",
+    "rename", "aliases", "default", "skip", "skip_serializing", "skip_deserializing",
+    "skip_serializing_if", "path", "serialize_with", "deserialize_with", "codec",
+    "flatten",
   ]
 }
 
@@ -335,14 +336,16 @@ fn parse_field(
   let optional = option_depth > 0
   let flatten = flag_option(options, "flatten", context)
   let skip = flag_option(options, "skip", context)
+  let skip_serializing = flag_option(options, "skip_serializing", context)
+  let skip_deserializing = flag_option(options, "skip_deserializing", context)
   let (serialize_with, deserialize_with) = field_hooks(options, context)
   if flatten {
     if optional {
       serde_error(context, "flatten requires a non-optional field")
     }
     if [
-        "rename", "aliases", "path", "default", "skip", "skip_serializing_if", "codec",
-        "serialize_with", "deserialize_with",
+        "rename", "aliases", "path", "default", "skip", "skip_serializing", "skip_deserializing",
+        "skip_serializing_if", "codec", "serialize_with", "deserialize_with",
       ].any(key => options.contains(key)) {
       serde_error(
         context, "flatten cannot be combined with other field options",
@@ -352,13 +355,42 @@ fn parse_field(
   if skip && (serialize_with is Some(_) || deserialize_with is Some(_)) {
     serde_error(context, "skip cannot be combined with codec hooks")
   }
-  let omit_none = match string_option(options, "skip_serializing_if", context) {
-    None => false
-    Some("Option::is_none") if optional => true
-    _ =>
+  if skip_serializing && serialize_with is Some(_) {
+    serde_error(
+      context, "skip_serializing cannot be combined with a serialization hook",
+    )
+  }
+  if skip_deserializing && deserialize_with is Some(_) {
+    serde_error(
+      context, "skip_deserializing cannot be combined with a deserialization hook",
+    )
+  }
+  let (omit_none, skip_serializing_if) = match
+    string_option(options, "skip_serializing_if", context) {
+    None => (false, None)
+    Some("Option::is_none") if optional => (true, None)
+    Some("Option::is_none") =>
       raise GenerateError(
         "\{context}: skip_serializing_if only supports Option::is_none on an Option field",
       )
+    Some(value) =>
+      (false, Some(parse_hook(value, "skip_serializing_if", context)))
+  }
+  let (default, default_with) = match options.get("default") {
+    Some(String(value)) =>
+      (
+        false,
+        Some(
+          parse_hook(
+            decode_attribute_string(value, context),
+            "default",
+            context,
+          ),
+        ),
+      )
+    None => (false, None)
+    Some(Bool(value)) => (value, None)
+    _ => raise GenerateError("\{context}: default must be a flag or a string")
   }
   validate_type(field.ty)
   {
@@ -370,9 +402,13 @@ fn parse_field(
     ty: field.ty,
     optional,
     option_depth,
-    default: flag_option(options, "default", context),
+    default,
+    default_with,
     skip,
+    skip_serializing,
+    skip_deserializing,
     omit_none,
+    skip_serializing_if,
     flatten,
     serialize_with,
     deserialize_with,
@@ -470,8 +506,12 @@ fn parse_variant(
         optional: option_depth > 0,
         option_depth,
         default: false,
+        default_with: None,
         skip: false,
+        skip_serializing: false,
+        skip_deserializing: false,
         omit_none: false,
+        skip_serializing_if: None,
         flatten: false,
         serialize_with: None,
         deserialize_with: None,

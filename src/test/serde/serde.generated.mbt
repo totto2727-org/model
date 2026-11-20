@@ -1042,6 +1042,97 @@ pub impl[T : @json.FromJson, U : Default] @json.FromJson for WithSkipped[T, U] w
 }
 
 ///|
+pub impl[Read, Write : ToJson, Scratch] ToJson for DirectionalFields[
+  Read,
+  Write,
+  Scratch,
+] with fn to_json(self) {
+  let obj : Map[String, Json] = Map([])
+  obj.set(
+    "output",
+    match self.output {
+      None => Json::null()
+      Some(option_1) => ToJson::to_json(option_1)
+    },
+  )
+  Json::object(obj)
+}
+
+///|
+pub impl[Read : @json.FromJson, Write, Scratch] @json.FromJson for DirectionalFields[
+  Read,
+  Write,
+  Scratch,
+] with fn from_json(value, path) {
+  let obj = @serde.object(value, path)
+  let f0 : Read? = match @serde.field(obj, "input", ["legacy_input"], path) {
+    Some(value) =>
+      match value {
+        Null => None
+        option_1 => Some(@json.from_json(option_1, path=path.add_key("input")))
+      }
+    None => None
+  }
+  let f1 : Write? = empty_option()
+  let f2 : Array[Scratch] = empty_array()
+  { input: f0, output: f1, scratch: f2, }
+}
+
+///|
+pub impl ToJson for CallableFields with fn to_json(self) {
+  let obj : Map[String, Json] = Map([])
+  if CallableFields::omit_value(self.value) == false {
+    @serde.write_path(
+      obj,
+      ["settings", "value"],
+      match self.value {
+        None => Json::null()
+        Some(option_1) => ToJson::to_json(option_1)
+      },
+    )
+  }
+  obj.set("status", ToJson::to_json(self.status))
+  obj.set(
+    "legacy_optional",
+    match self.legacy_optional {
+      None => Json::null()
+      Some(option_1) => ToJson::to_json(option_1)
+    },
+  )
+  Json::object(obj)
+}
+
+///|
+pub impl @json.FromJson for CallableFields with fn from_json(value, path) {
+  let obj = @serde.object(value, path)
+  @serde.deny_unknown_paths(
+    obj,
+    [["settings", "value"], ["hidden"], ["legacy_optional"]],
+    path,
+  )
+  let f0 : Int32? = match @serde.read_path(obj, ["settings", "value"], path) {
+    (Some(value), at, _) =>
+      match value {
+        Null => None
+        option_1 => Some(@json.from_json(option_1, path=at))
+      }
+    (None, _, _) => fallback_value()
+  }
+  let f1 : Int32 = Default::default()
+  let f2 : Int32? = fallback_value()
+  let f3 : Int32? = match @serde.field(obj, "legacy_optional", [], path) {
+    Some(value) =>
+      match value {
+        Null => None
+        option_1 =>
+          Some(@json.from_json(option_1, path=path.add_key("legacy_optional")))
+      }
+    None => None
+  }
+  { value: f0, status: f1, hidden: f2, legacy_optional: f3, }
+}
+
+///|
 impl ToJson for HookModel with fn to_json(self) {
   let obj : Map[String, Json] = Map([])
   @serde.write_path(obj, ["meta", "id"], encode_code(self.id))
