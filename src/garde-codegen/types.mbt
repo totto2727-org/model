@@ -80,17 +80,18 @@ fn settings(
           .to_array()
           .map(trait_ => {
             match trait_ {
-              Ident({ qual: None, name: "Validate" | "Length" as name, }) =>
+              Ident({ qual: None, name: "Validate" | "Length" | "Eq" as name, }) =>
                 name
               _ =>
                 raise GenerateError(
-                  "\{at}: bounds supports Validate and Length",
+                  "\{at}: bounds supports Validate, Length, and Eq",
                 )
             }
           })
-        if (traits.length() == 2 && traits[0] == traits[1]) ||
-          traits.length() > 2 {
-          fail(at, "repeated trait in bounds for \{param}")
+        for index, trait_ in traits {
+          if traits[:index].contains(trait_) {
+            fail(at, "repeated trait in bounds for \{param}")
+          }
         }
         bounds[param] = traits
       }
@@ -130,11 +131,12 @@ fn emit_field(
   emitter : Emitter,
   expr : String,
   path : String,
+  record~ : (String, @list.List[@syntax.FieldDecl])? = None,
 ) -> Unit raise GenerateError {
   if !rules.is_empty() {
     let p = emitter.prefix
     out.write_string("{\nlet \{p}value = \{expr}\nlet \{p}path = \{path}\n")
-    emit_rules(out, ty, rules, at, emitter)
+    emit_rules(out, ty, rules, at, emitter, record~)
     out.write_string("}\n")
   }
 }
@@ -165,6 +167,7 @@ fn record_body(
           emitter,
           "\{p}self.\{name}",
           "\{p}path.field(\"\{name}\")",
+          record=Some((name, fields)),
         )
       }
     }
@@ -368,7 +371,11 @@ fn emit_declaration(
     if traits.is_empty() {
       param
     } else {
-      param + " : " + traits.map(name => "@garde.\{name}").join(" + ")
+      param +
+      " : " +
+      traits
+      .map(name => if name == "Eq" { "Eq" } else { "@garde.\{name}" })
+      .join(" + ")
     }
   })
   let quantifiers = if generics.is_empty() {

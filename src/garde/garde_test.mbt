@@ -1,9 +1,9 @@
 ///|
-test "length counts UTF-8 bytes for strings and elements for arrays" {
-  assert_eq(@garde.length("Aé名😀", Some(10), Some(10)), None)
+test "length uses MoonBit string length and counts array elements" {
+  assert_eq(@garde.length("Aé名😀", Some(5), Some(5)), None)
   assert_eq(
-    @garde.length("Aé名😀", None, Some(9)),
-    Some("length must be at most 9"),
+    @garde.length("Aé名😀", None, Some(4)),
+    Some("length must be at most 4"),
   )
   assert_eq(@garde.length([1, 2], Some(2), Some(2)), None)
 }
@@ -68,4 +68,11 @@ test "validate_using captures a typed context and returns ordered violations" {
       )
     }
   }
+}
+
+///|
+test "regular expressions search unless anchored" {
+  assert_true(@garde.pattern("ref-ID-42", "ID-[0-9]+") is None)
+  assert_true(@garde.pattern("ref-ID-42", "^ID-[0-9]+$") is Some(_))
+  assert_true(@garde.pattern("ID-42", "[") is Some(_))
 }

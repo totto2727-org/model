@@ -12,6 +12,16 @@ test "reject invalid rules at the field's source location" {
       ("skip, dive", "String", "unknown or invalid garde rule"),
       ("custom_with(check)", "String", "custom_with requires context"),
       ("dive_with", "String", "dive_with requires context"),
+      ("pattern(\"[\")", "String", "invalid regular expression"),
+      ("pattern(regex)", "String", "pattern expects one quoted"),
+      ("matches(\"value\")", "String", "matches expects one unqualified"),
+      ("matches(missing)", "String", "unknown record field: missing"),
+      (
+        "matches(value)", "String", "matches cannot refer to the annotated field itself",
+      ),
+      (
+        "inner(matches(value))", "Array[String]", "matches is only supported directly on record fields",
+      ),
     ] {
     let source = "#custom.garde\nstruct S {\n  #custom.garde(\{attribute})\n  value : \{field_type}\n}\n"
     let result = Ok(@garde_codegen.generate_many([("rules.mbt", source)])) catch {
@@ -27,6 +37,9 @@ test "reject invalid rules at the field's source location" {
 test "reject invalid payload selectors and unattached enum attributes" {
   for
     (source, expected) in [
+      (
+        "#custom.garde(field(index=\"0\", matches(other)))\nstruct S(String)", "matches is only supported directly on record fields",
+      ),
       (
         "#custom.garde(field(index=\"0\", skip), field(index=\"1\", ascii))\nstruct S(String)",
         "no payload field for selector index:1",

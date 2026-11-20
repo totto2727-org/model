@@ -30,13 +30,14 @@ test "Serde decodes business-invalid data before explicit garde validation" {
 ///|
 test "valid data accepts inclusive boundaries and skips unset optional fields" {
   let value : @validation.Account = @json.from_json({
-    "displayName": "名",
+    "displayName": "名😀",
     "level": -1,
     "contact": "ok",
     "locations": [{ "code": "JP" }],
     "notes": "",
   })
   assert_true(@garde.validate(value) is Ok(_))
+  assert_true(@garde.validate({ ..value, name: "名", }) is Err(_))
   assert_true(@garde.validate({ ..value, level: 10, }) is Ok(_))
   let wrong_shape : @validation.Account? = Some(
     @json.from_json({
@@ -75,6 +76,38 @@ fn[T : @garde.Validate] invalid_paths(value : T) -> Array[String] raise {
   [
     for issue in report.violations() => Show::to_string(issue.path)
   ]
+}
+
+///|
+test "regex and sibling constraints run only after JSON decoding" {
+  let value : @validation.Confirmation = @json.from_json({
+    "code": "prefix-ID-42.",
+    "repeatedCode": "ID-42.",
+  })
+  guard @garde.validate(value) is Err(report) else {
+    fail("expected two validation failures")
+  }
+  let issues = report.violations()
+  assert_eq(issues.length(), 2)
+  assert_eq(Show::to_string(issues[0].path), "repeated")
+  assert_eq(issues[0].message, "must match code")
+  assert_eq(Show::to_string(issues[1].path), "code")
+  assert_eq(issues[1].message, "does not match the pattern")
+  let valid : @validation.Confirmation = {
+    code: Some("ID-42."),
+    repeated: Some("ID-42."),
+  }
+  let absent : @validation.Confirmation = { code: None, repeated: None, }
+  assert_true(@garde.validate(valid) is Ok(_))
+  assert_true(@garde.validate(absent) is Ok(_))
+  assert_eq(invalid_paths({ ..valid, repeated: None, }), ["repeated"])
+}
+
+///|
+test "sibling equality infers Eq for generic fields" {
+  let same : @validation.Same[Int32] = { original: 1, repeated: 1, }
+  assert_true(@garde.validate(same) is Ok(_))
+  assert_eq(invalid_paths({ ..same, repeated: 2, }), ["repeated"])
 }
 
 ///|

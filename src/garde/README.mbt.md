@@ -179,7 +179,7 @@ pub impl @garde.Validate for Contact with fn collect(
 }
 ```
 
-`length` counts UTF-8 bytes for `String` and items for `Array`, `ReadOnlyArray`, and `FixedArray`. Other types can implement `@garde.Length`.
+`length` uses MoonBit's `String.length()` (UTF-16 code units) for strings and counts items for `Array`, `ReadOnlyArray`, and `FixedArray`. Other types can implement `@garde.Length`.
 Use quoted decimal bounds with `length` and `range`: `min`, `max`, both, or `equal` alone. The MoonBit attribute parser does not accept bare integers in these rules.
 Use `skip` alone on a field, payload, or variant.
 
@@ -240,6 +240,59 @@ Each rule can add a separate violation to the same field path.
   let garde_path = garde_path.field("code")
   if check_code(garde_value) is Some(message) {
     garde_report.add(garde_path, message)
+  }
+```
+
+### `pattern`
+
+Use `pattern("...")` to check a `String` with a MoonBit regular expression.
+The rule searches for a match anywhere in the string. Use `^` and `$` to check the whole string, as below.
+Write regex backslashes as `\\` inside the quoted attribute.
+The generator rejects malformed expressions. For an optional string, the rule runs only on `Some`.
+
+```mbt nocheck
+///|
+#custom.garde
+pub struct Reference {
+  #custom.garde(pattern("^ID-[0-9]+\\.$"))
+  code : String
+}
+```
+
+The generated validator adds a violation at `code` if the expression does not match.
+
+```mbt nocheck
+  let garde_value = garde_self.code
+  let garde_path = garde_path.field("code")
+  if @garde.pattern(garde_value, "^ID-[0-9]+\\.$") is Some(message) {
+    garde_report.add(garde_path, message)
+  }
+```
+
+### `matches`
+
+Use `matches(field)` directly on a record field to compare it with a sibling.
+Use the sibling's MoonBit name, not its JSON key. The two fields must have the same type and support `Eq`.
+The rule compares whole values. For two optional fields, `None` matches `None`, but does not match `Some`.
+
+```mbt nocheck
+///|
+#custom.garde
+pub struct Confirmation {
+  #custom.garde(skip)
+  code : String
+  #custom.garde(matches(code))
+  repeated : String
+}
+```
+
+The generated validator reports a mismatch at `repeated`, not `code`.
+
+```mbt nocheck
+  let garde_value = garde_self.repeated
+  let garde_path = garde_path.field("repeated")
+  if garde_value != garde_self.code {
+    garde_report.add(garde_path, "must match code")
   }
 ```
 
@@ -354,7 +407,8 @@ pub impl[T : @garde.Validate] @garde.Validate for Update[T] with fn collect(
 
 A direct `length` check on `T` adds a `Length` bound.
 Use `bounds` to specify a parameter's bounds when the needed traits cannot be inferred, for example when `dive` targets a wrapper around `T`.
-Valid lists include `[Length]`, `[Validate, Length]`, and `[]` to suppress that parameter's inferred bounds.
+Valid lists include `[Length]`, `[Validate, Length]`, `[Eq]`, and `[]` to suppress that parameter's inferred bounds.
+`matches` infers an `Eq` bound when a compared field uses a type parameter.
 Unused or skipped type parameters need no bound.
 
 ```mbt nocheck

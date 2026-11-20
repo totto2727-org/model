@@ -17,6 +17,7 @@ priv enum Rule {
   Custom(String)
   CustomWith(String)
   Text(String, String?)
+  Matches(String)
 }
 
 ///|
@@ -119,7 +120,13 @@ fn parse_rules(
         Text(name, None)
       Expr(
         Apply(
-          { qual: None, name: "contains" | "prefix" | "suffix" as name, },
+          {
+            qual: None,
+            name: "contains"
+            | "prefix"
+            | "suffix"
+            | "pattern" as name,
+          },
           More(Expr(String(raw)), tail=Empty),
         ),
       ) => {
@@ -132,8 +139,23 @@ fn parse_rules(
         guard json is String(value) else {
           raise GenerateError("\{at}: \{name} expects a string literal")
         }
+        if name == "pattern" {
+          ignore(@string.Regex(value[:])) catch {
+            _ => fail(at, "invalid regular expression in pattern")
+          }
+        }
         Text(name, Some("\"\{value.escape(quote=false)}\""))
       }
+      Expr(Apply({ qual: None, name: "pattern", }, _)) =>
+        fail_rule(at, "pattern expects one quoted regular expression")
+      Expr(
+        Apply(
+          { qual: None, name: "matches", },
+          More(Expr(Ident({ qual: None, name, })), tail=Empty),
+        ),
+      ) => Matches(name)
+      Expr(Apply({ qual: None, name: "matches", }, _)) =>
+        fail_rule(at, "matches expects one unqualified record field name")
       Expr(
         Apply(
           { qual: None, name: "custom" | "custom_with" as kind, },
@@ -214,6 +236,7 @@ fn emit_rules(
   rules : Array[Rule],
   at : String,
   emitter : Emitter,
+  record~ : (String, @list.List[@syntax.FieldDecl])? = None,
 ) -> Unit raise GenerateError {
   let p = emitter.prefix
   for rule in rules {
@@ -223,6 +246,30 @@ fn emit_rules(
       }
       out.write_string(
         "if \{p}value is None { \{p}report.add(\{p}path, \"is required\") }\n",
+      )
+    } else if rule is Matches(other) {
+      guard record is Some((field, fields)) else {
+        raise GenerateError(
+          "\{at}: matches is only supported directly on record fields",
+        )
+      }
+      if field == other {
+        fail(at, "matches cannot refer to the annotated field itself")
+      }
+      let mut found = false
+      for sibling in fields {
+        if sibling.name.label == other {
+          require_bound(emitter, sibling.ty, "Eq", nested=true)
+          found = true
+          break
+        }
+      }
+      if !found {
+        fail(at, "matches refers to unknown record field: \{other}")
+      }
+      require_bound(emitter, ty, "Eq", nested=true)
+      out.write_string(
+        "if \{p}value != \{p}self.\{other} { \{p}report.add(\{p}path, \"must match \{other}\") }\n",
       )
     } else {
       emit_rule(out, ty, rule, at, emitter)
@@ -301,7 +348,7 @@ fn emit_rule(
       out.write_string("}\n")
       return
     }
-    Required => abort("required is emitted before unwrapping Option")
+    Required | Matches(_) => abort("rule is emitted before unwrapping Option")
   }
   out.write_string(
     "if \{call} is Some(message) { \{p}report.add(\{p}path, message) }\n",

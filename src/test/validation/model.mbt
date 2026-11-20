@@ -122,3 +122,23 @@ pub(all) struct Request {
   #custom.garde(inner(dive_with))
   allocations : Array[Allocation]
 }
+
+///|
+#custom.serde
+#custom.garde
+pub(all) struct Confirmation {
+  #custom.serde(rename="repeatedCode")
+  #custom.garde(matches(code))
+  repeated : String?
+  #custom.garde(pattern("^ID-[0-9]+\\.$"))
+  code : String?
+}
+
+///|
+#custom.garde
+pub(all) struct Same[T] {
+  #custom.garde(matches(original))
+  repeated : T
+  #custom.garde(skip)
+  original : T
+}

@@ -283,6 +283,49 @@ pub impl @json.FromJson for Request with fn from_json(value, path) {
 }
 
 ///|
+pub impl ToJson for Confirmation with fn to_json(self) {
+  let obj : Map[String, Json] = Map([])
+  obj.set(
+    "repeatedCode",
+    match self.repeated {
+      None => Json::null()
+      Some(option_1) => ToJson::to_json(option_1)
+    },
+  )
+  obj.set(
+    "code",
+    match self.code {
+      None => Json::null()
+      Some(option_1) => ToJson::to_json(option_1)
+    },
+  )
+  Json::object(obj)
+}
+
+///|
+pub impl @json.FromJson for Confirmation with fn from_json(value, path) {
+  let obj = @serde.object(value, path)
+  let f0 : String? = match @serde.field(obj, "repeatedCode", [], path) {
+    Some(value) =>
+      match value {
+        Null => None
+        option_1 =>
+          Some(@json.from_json(option_1, path=path.add_key("repeatedCode")))
+      }
+    None => None
+  }
+  let f1 : String? = match @serde.field(obj, "code", [], path) {
+    Some(value) =>
+      match value {
+        Null => None
+        option_1 => Some(@json.from_json(option_1, path=path.add_key("code")))
+      }
+    None => None
+  }
+  { repeated: f0, code: f1, }
+}
+
+///|
 pub impl @garde.Validate for Address with fn collect(
   garde__self,
   garde__report,
@@ -557,4 +600,39 @@ pub fn Request::validate_with(
   @garde.validate_using(self, (value, report, path) => {
     value.collect_with(context, report, path)
   })
+}
+
+///|
+pub impl @garde.Validate for Confirmation with fn collect(
+  garde__self,
+  garde__report,
+  garde__path,
+) {
+  {
+    let garde__value = garde__self.repeated
+    let garde__path = garde__path.field("repeated")
+    if garde__value != garde__self.code {
+      garde__report.add(garde__path, "must match code")
+    }
+  }
+  let garde__value = garde__self.code
+  let garde__path = garde__path.field("code")
+  if garde__value is Some(garde__value) {
+    if @garde.pattern(garde__value, "^ID-[0-9]+\\.$") is Some(message) {
+      garde__report.add(garde__path, message)
+    }
+  }
+}
+
+///|
+pub impl[T : Eq] @garde.Validate for Same[T] with fn collect(
+  garde__self,
+  garde__report,
+  garde__path,
+) {
+  let garde__value = garde__self.repeated
+  let garde__path = garde__path.field("repeated")
+  if garde__value != garde__self.original {
+    garde__report.add(garde__path, "must match original")
+  }
 }
