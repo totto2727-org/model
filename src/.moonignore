@@ -1,4 +1,4 @@
-# The integration fixtures require serde-gen during development.
+# Integration test models and generated fixtures are not part of the library.
 /test/
 # The CLI is a separate module.
 /cmd/

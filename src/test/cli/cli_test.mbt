@@ -35,6 +35,11 @@ async test "serde-gen generates codecs and validators together without overwriti
   assert_true(generated.contains("impl @json.FromJson for Both"))
   assert_true(generated.contains("impl @garde.Validate for Both"))
   assert_false(@fs.exists("\{dir}/garde.generated.mbt"))
+  let modified = @fs.mtime(output)
+  @async.sleep(1100)
+  assert_eq(cli(dir, ["--package", "."]), (0, "", ""))
+  assert_eq(@fs.read_file(output).text(), generated)
+  assert_false(@fs.mtime(output) == modified)
   assert_eq(
     cli(dir, ["models.mbt", "--output", "explicit.generated.mbt"]),
     (0, "", ""),
@@ -103,7 +108,7 @@ async test "serde-gen refreshes validators without discarding the package codecs
 }
 
 ///|
-async test "serde-gen - explicit inputs keep order without rewriting identical output" {
+async test "serde-gen - explicit inputs keep order" {
   let dir = @fs.tmpdir(prefix="serde-gen-test")
   defer @fs.rmdir(dir, recursive=true)
   model(dir, "first.mbt", "First")
@@ -119,10 +124,6 @@ async test "serde-gen - explicit inputs keep order without rewriting identical o
     fail("missing Second implementation")
   }
   assert_true(first < second)
-  let modified = @fs.mtime(path)
-  assert_eq(cli(dir, argv[:]), (0, "", ""))
-  assert_eq(@fs.read_file(path).text(), before)
-  assert_eq(@fs.mtime(path), modified)
 }
 
 ///|

@@ -37,7 +37,8 @@ For target-specific files, or a Moon `dev_build` rule that tracks explicit depen
 This form also generates both codecs and validators.
 The input and output files must be in the same package.
 
-The generator does not overwrite a handwritten file or rewrite an identical output.
+Each run regenerates all matching models and rewrites the generated output, even if it is unchanged.
+The generator does not overwrite a handwritten file.
 A generation error identifies the file and source range.
 For a duplicate annotated type, it identifies both definitions.
 

@@ -61,10 +61,7 @@ async fn run(args : ArrayView[String]) -> Unit {
 }
 
 ///|
-fn generate_files(
-  inputs : ReadOnlyArray[String],
-  output : String,
-) -> Unit raise {
+fn generate_files(inputs : ReadOnlyArray[String], output : String) -> Unit raise {
   let sources : Array[(String, String)] = []
   for input in inputs {
     sources.push((input, @fs.read_file_to_string(input)))
@@ -73,10 +70,7 @@ fn generate_files(
 }
 
 ///|
-fn generate(
-  sources : Array[(String, String)],
-  output : String,
-) -> Unit raise {
+fn generate(sources : Array[(String, String)], output : String) -> Unit raise {
   // Filter on the contiguous lexer token. Only the AST confirms an attribute.
   let codecs = @codegen.generate_many(
     sources.filter(source => source.1.contains("#custom.serde")),
@@ -84,13 +78,12 @@ fn generate(
   let validation = @garde_codegen.generate_many(
     sources.filter(source => source.1.contains("#custom.garde")),
   )
-  let validation = validation.strip_prefix(@garde_codegen.GENERATED_HEADER + "\n").unwrap()
-  let generated = codecs + validation.to_string()
+  let validation = validation
+    .strip_prefix(@garde_codegen.GENERATED_HEADER + "\n")
+    .unwrap()
+  let generated = codecs + validation.to_owned()
   if @fs.path_exists(output) {
     let previous = @fs.read_file_to_string(output)
-    if previous == generated {
-      return
-    }
     if !previous.has_prefix(@codegen.GENERATED_HEADER + "\n") ||
       sources.any(fn(source) { source.1 == previous }) {
       raise RefuseOverwrite(output)
