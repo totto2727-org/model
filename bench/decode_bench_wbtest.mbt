@@ -122,23 +122,21 @@ let decoders : ReadOnlyArray[(String, (Json) -> Request raise)] = [
 ]
 
 ///|
-fn main raise {
+test "JSON text: parse and decode" (b : @bench.T) {
+  for entry in decoders {
+    let (name, decode) = entry
+    b.bench(name~, fn() {
+      let input = try! @json.parse(fixture)
+      b.keep(try! decode(input))
+    })
+  }
+}
+
+///|
+test "Parsed JSON: decode only" (b : @bench.T) {
   let input = @json.parse(fixture)
   for entry in decoders {
-    let (_, decode) = entry
-    assert_eq(decode(input), expected)
+    let (name, decode) = entry
+    b.bench(name~, fn() { b.keep(try! decode(input)) })
   }
-  let b = @bench.Bench()
-  for lane in 0..<8 {
-    for offset in 0..<8 {
-      let arm = (lane + offset) % 8
-      let (name, decode) = decoders[arm % 4]
-      let mode = if arm < 4 { "text" } else { "json" }
-      b.bench(name="\{lane}/\{mode}/\{name}", fn() {
-        let document = if arm < 4 { try! @json.parse(fixture) } else { input }
-        b.keep(try! decode(document))
-      })
-    }
-  }
-  println(b.dump_summaries())
 }
