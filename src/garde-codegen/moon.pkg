@@ -1,0 +1,13 @@
+import {
+  "moonbitlang/core/json",
+  "moonbitlang/core/list",
+  "moonbitlang/core/string",
+  "moonbitlang/parser",
+  "moonbitlang/parser/attribute",
+  "moonbitlang/parser/fmt",
+  "moonbitlang/parser/syntax",
+}
+
+import {
+  "totto2727/serde/garde-codegen" @garde_codegen,
+} for "test"

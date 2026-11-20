@@ -18,8 +18,8 @@ test "official AST selects marked types and preserves nested options and aliases
     #|  #custom.serde(skip)
     #|  ignored_value : Int
     #|}
-  let definitions = @codegen.parse(source) catch {
-    @codegen.GenerateError(message) => fail(message)
+  let definitions = @serde_codegen.parse(source) catch {
+    @serde_codegen.GenerateError(message) => fail(message)
   }
   guard definitions is [Record(record)] else {
     fail("expected a single record")
@@ -49,7 +49,7 @@ test "attribute key escapes are decoded before comparing paths" {
     #|  #custom.serde(path=["root", "line\n"])
     #|  second : String
     #|}
-  let definitions = @codegen.parse(source)
+  let definitions = @serde_codegen.parse(source)
   guard definitions is [Record(record)] else { fail("expected a record") }
   assert_eq(record.fields[0].wire_name, "quote\"")
   assert_eq(record.fields[0].aliases, ["tab\t", "a"])
@@ -77,8 +77,8 @@ test "official AST distinguishes unit, labeled, and positional enum variants" {
     #|  #custom.serde(rename = "tuple")
     #|  Unnamed(Int, String)
     #|}
-  let definitions = @codegen.parse(source) catch {
-    @codegen.GenerateError(message) => fail(message)
+  let definitions = @serde_codegen.parse(source) catch {
+    @serde_codegen.GenerateError(message) => fail(message)
   }
   guard definitions is [Sum(sum)] else { fail("expected a single enum") }
   assert_true(sum.repr is Adjacent("kind", "payload"))
@@ -94,10 +94,10 @@ test "official AST distinguishes unit, labeled, and positional enum variants" {
 
 ///|
 fn assert_invalid_serde(source : String, reason : String) -> Unit raise {
-  let result = Ok(@codegen.parse(source, name="broken.mbt")) catch {
+  let result = Ok(@serde_codegen.parse(source, name="broken.mbt")) catch {
     e => Err(e)
   }
-  guard result is Err(@codegen.GenerateError(message)) else {
+  guard result is Err(@serde_codegen.GenerateError(message)) else {
     fail("expected GenerateError: \{reason}")
   }
   assert_true(message.contains("broken.mbt"), msg=message)

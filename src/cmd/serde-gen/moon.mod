@@ -2,6 +2,8 @@ name = "totto2727/serde-gen"
 
 version = "0.1.0"
 
+readme = "README.mbt.md"
+
 preferred_target = "native"
 
 import {

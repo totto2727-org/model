@@ -13,13 +13,102 @@ async fn model(dir : String, file : String, name : String) -> Unit {
 async test "serde-gen - usage goes to stdout for help and stderr for bad arguments" {
   let dir = @fs.tmpdir(prefix="serde-gen-test")
   defer @fs.rmdir(dir, recursive=true)
-  let usage = "Usage: serde-gen INPUT... --output OUTPUT\n       serde-gen --package DIR\n"
+  let usage = "Usage: serde-gen --package DIR\n       serde-gen INPUT... --output OUTPUT\n"
   assert_eq(cli(dir, ["--help"]), (0, usage, ""))
   assert_eq(cli(dir, ["first.mbt"]), (2, "", usage))
+  assert_eq(cli(dir, ["--validate", "--package", "."]), (2, "", usage))
 }
 
 ///|
-async test "serde-gen - explicit inputs keep order without rewriting identical output" {
+async test "serde-gen generates codecs and validators together without overwriting handwritten code" {
+  let dir = @fs.tmpdir(prefix="serde-gen-test")
+  defer @fs.rmdir(dir, recursive=true)
+  @fs.write_file("\{dir}/moon.pkg", "")
+  @fs.write_file(
+    "\{dir}/models.mbt",
+    "#custom.serde\n#custom.garde\nstruct Both {\n  #custom.garde(range(min=\"0\"))\n  value : Int\n}\n",
+  )
+  assert_eq(cli(dir, ["--package", "."]), (0, "", ""))
+  let output = "\{dir}/serde.generated.mbt"
+  let generated = @fs.read_file(output).text()
+  assert_true(generated.contains("impl ToJson for Both"))
+  assert_true(generated.contains("impl @json.FromJson for Both"))
+  assert_true(generated.contains("impl @garde.Validate for Both"))
+  assert_false(@fs.exists("\{dir}/garde.generated.mbt"))
+  let modified = @fs.mtime(output)
+  @async.sleep(1100)
+  assert_eq(cli(dir, ["--package", "."]), (0, "", ""))
+  assert_eq(@fs.read_file(output).text(), generated)
+  assert_false(@fs.mtime(output) == modified)
+  assert_eq(
+    cli(dir, ["models.mbt", "--output", "explicit.generated.mbt"]),
+    (0, "", ""),
+  )
+  assert_eq(@fs.read_file("\{dir}/explicit.generated.mbt").text(), generated)
+  @fs.write_file(output, "handwritten\n")
+  let (status, _, err) = cli(dir, ["--package", "."])
+  assert_eq(status, 1)
+  assert_true(err.contains("refusing to overwrite"), msg=err)
+  assert_eq(@fs.read_file(output).text(), "handwritten\n")
+}
+
+///|
+async fn guarded_model(dir : String, file : String, name : String) -> Unit {
+  @fs.write_file(
+    "\{dir}/\{file}",
+    "#custom.garde(field(index=\"0\", ascii))\nstruct \{name}(String)\n",
+  )
+}
+
+///|
+async test "serde-gen refreshes validators without discarding the package codecs" {
+  let dir = @fs.tmpdir(prefix="serde-gen-test")
+  defer @fs.rmdir(dir, recursive=true)
+  @fs.mkdir("\{dir}/child")
+  @fs.write_file("\{dir}/moon.pkg", "")
+  @fs.write_file("\{dir}/child/moon.pkg", "")
+  model(dir, "codec.mbt", "CodecOnly")
+  guarded_model(dir, "original.mbt", "Original")
+  for
+    file in [
+      "child/nested.mbt", "ignored_test.mbt", "ignored.js.mbt", "already.generated.mbt",
+    ] {
+    guarded_model(dir, file, "Ignored")
+  }
+  let argv = ["--package", "."]
+  let output = "\{dir}/serde.generated.mbt"
+  assert_eq(cli(dir, argv[:]), (0, "", ""))
+  let original = @fs.read_file(output).text()
+  assert_true(original.contains("impl @garde.Validate for Original "))
+  assert_false(original.contains("Ignored"))
+  assert_true(original.contains("impl ToJson for CodecOnly "))
+
+  guarded_model(dir, "new.mbt", "Added")
+  guarded_model(dir, "original.mbt", "Edited")
+  assert_eq(cli(dir, argv[:]), (0, "", ""))
+  let updated = @fs.read_file(output).text()
+  assert_true(updated.contains("impl @garde.Validate for Added "))
+  assert_true(updated.contains("impl @garde.Validate for Edited "))
+  assert_false(updated.contains("Original"))
+
+  @fs.remove("\{dir}/new.mbt")
+  @fs.remove("\{dir}/original.mbt")
+  assert_eq(cli(dir, argv[:]), (0, "", ""))
+  let codecs = @fs.read_file(output).text()
+  assert_true(codecs.contains("impl ToJson for CodecOnly "))
+  assert_false(codecs.contains("@garde.Validate"))
+  @fs.write_file(
+    "\{dir}/broken.mbt",
+    "#custom.garde(field(index=\"0\", required))\nstruct Broken(Int)\n",
+  )
+  let (status, _, err) = cli(dir, argv[:])
+  assert_eq(status, 1)
+  assert_true(err.contains("required expects Option"), msg=err)
+  assert_eq(@fs.read_file(output).text(), codecs)
+}
+
+///|
+async test "serde-gen - explicit inputs keep order" {
   let dir = @fs.tmpdir(prefix="serde-gen-test")
   defer @fs.rmdir(dir, recursive=true)
   model(dir, "first.mbt", "First")
@@ -35,10 +124,6 @@ async test "serde-gen - explicit inputs keep order without rewriting identical o
     fail("missing Second implementation")
   }
   assert_true(first < second)
-  let modified = @fs.mtime(path)
-  assert_eq(cli(dir, argv[:]), (0, "", ""))
-  assert_eq(@fs.read_file(path).text(), before)
-  assert_eq(@fs.mtime(path), modified)
 }
 
 ///|

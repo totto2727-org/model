@@ -1,0 +1,9 @@
+import {
+  "totto2727/serde",
+  "moonbitlang/core/json",
+}
+
+import {
+  "moonbitlang/core/test",
+  "totto2727/serde/test/serde" @roundtrip,
+} for "test"
