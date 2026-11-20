@@ -18,6 +18,7 @@ The type marker generates an implementation of `@garde.Validate`.
 By default, a field must have a validation rule or `skip`.
 
 ```mbt nocheck
+///|
 #custom.garde
 pub struct Contact {
   #custom.garde(required, length(min="2", max="80"))
@@ -34,6 +35,7 @@ This is the complete generated implementation.
 `range` applies inclusive bounds, and `skip` omits `notes` from the implementation.
 
 ```mbt nocheck
+///|
 pub impl @garde.Validate for Contact with fn collect(
   garde_self,
   garde_report,
@@ -71,6 +73,7 @@ Use `length(min="1")` if an empty string should also fail.
 A function passed to `custom` receives the field value and returns `None` on success or `Some(message)` on failure.
 
 ```mbt nocheck
+///|
 #custom.garde
 pub struct Credentials {
   #custom.garde(ascii, alphanumeric)
@@ -81,8 +84,13 @@ pub struct Credentials {
   code : String
 }
 
+///|
 fn check_code(code : String) -> String? {
-  if code == "unset" { Some("choose a code") } else { None }
+  if code == "unset" {
+    Some("choose a code")
+  } else {
+    None
+  }
 }
 ```
 
@@ -124,6 +132,7 @@ Use `dive` to run the nested type's `Validate` implementation.
 Use `inner` to apply one or more rules to each array item.
 
 ```mbt nocheck
+///|
 #custom.garde(allow_unvalidated)
 pub struct Directory {
   #custom.garde(dive)
@@ -138,6 +147,7 @@ The generated implementation does not access `description`.
 It passes `owner` directly to `Validate::collect` and loops over `contacts` with its indices, so a violation can be reported at `owner.name` or `contacts[0].name`.
 
 ```mbt nocheck
+///|
 pub impl @garde.Validate for Directory with fn collect(
   garde_self,
   garde_report,
@@ -164,9 +174,11 @@ Set `name` to a label for a named enum payload.
 On an enum, put the type marker on the enum and the selectors on the variants.
 
 ```mbt nocheck
+///|
 #custom.garde(field(index="0", ascii))
 pub struct Id(String)
 
+///|
 #custom.garde
 pub enum Update[T] {
   NoChange
@@ -196,7 +208,8 @@ The wildcard arm does nothing for unit and skipped variants.
 `dive` on `T` adds a `Validate` bound.
 
 ```mbt nocheck
-pub impl[T :  @garde.Validate] @garde.Validate for Update[T] with fn collect(
+///|
+pub impl[T : @garde.Validate] @garde.Validate for Update[T] with fn collect(
   garde_self,
   garde_report,
   garde_path,
@@ -226,9 +239,11 @@ Use `bounds` to specify a parameter's bounds when the needed traits cannot be in
 Valid lists include `[Length]`, `[Validate, Length]`, and `[]` to suppress that parameter's inferred bounds.
 
 ```mbt nocheck
+///|
 #custom.garde(field(index="0", length(min="2")))
 pub struct Sized[T](T)
 
+///|
 #custom.garde(bounds(T, [Length]), field(index="0", dive))
 pub struct Envelope[T](Sized[T])
 ```
@@ -251,18 +266,28 @@ Use `context=Policy` to generate `validate_with` and `collect_with` methods inst
 `dive_with` passes the same context to a nested validator, including under `inner`.
 
 ```mbt nocheck
-pub struct Policy { max_count : Int32 }
+///|
+pub struct Policy {
+  max_count : Int32
+}
 
+///|
 #custom.garde(context=Policy)
 pub struct Allocation {
   #custom.garde(custom_with(check_count))
   count : Int32
 }
 
+///|
 fn check_count(count : Int32, policy : Policy) -> String? {
-  if count > policy.max_count { Some("exceeds quota") } else { None }
+  if count > policy.max_count {
+    Some("exceeds quota")
+  } else {
+    None
+  }
 }
 
+///|
 #custom.garde(context=Policy)
 pub struct Request {
   #custom.garde(inner(dive_with))
@@ -274,6 +299,7 @@ Call `allocation.validate_with(policy)` to start a report with the policy.
 The generated collector passes that policy to your check.
 
 ```mbt nocheck
+///|
 pub fn Allocation::collect_with(
   garde_self : Allocation,
   garde_context : Policy,
@@ -289,13 +315,14 @@ pub fn Allocation::collect_with(
 ```
 
 ```mbt nocheck
-pub fn Allocation::validate_with(self : Allocation, context : Policy) -> Result[
-  Unit,
-  @garde.Report,
-] {
-  @garde.validate_using(
-    self, (value, report, path) => value.collect_with(context, report, path)
-  )
+///|
+pub fn Allocation::validate_with(
+  self : Allocation,
+  context : Policy,
+) -> Result[Unit, @garde.Report] {
+  @garde.validate_using(self, (value, report, path) => {
+    value.collect_with(context, report, path)
+  })
 }
 ```
 
