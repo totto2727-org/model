@@ -61,7 +61,10 @@ async fn run(args : ArrayView[String]) -> Unit {
 }
 
 ///|
-fn generate_files(inputs : ReadOnlyArray[String], output : String) -> Unit raise {
+fn generate_files(
+  inputs : ReadOnlyArray[String],
+  output : String,
+) -> Unit raise {
   let sources : Array[(String, String)] = []
   for input in inputs {
     sources.push((input, @fs.read_file_to_string(input)))
