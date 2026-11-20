@@ -101,7 +101,7 @@ Do not combine `encode_only` and `decode_only`. With neither, Serde generates bo
 
 ## Record options
 
-This record uses the options in the sections below. For example, `{ "displayName": "Aki", "mail": "a@example.net", "meta": { "status": "active" } }` decodes successfully. When encoded, it uses `email` instead of `mail`, writes `count` as `0`, and omits `cache` and `locale`.
+This record shows how the options in the sections below work together.
 
 ```mbt nocheck
 ///|
@@ -118,6 +118,108 @@ struct Profile {
   cache : Int32
   #custom.serde(skip_serializing_if="Option::is_none")
   locale : String?
+}
+```
+
+### JSON input and output
+
+Decode this JSON as `Profile`:
+
+```json
+{
+  "displayName": "Aki",
+  "mail": "a@example.net",
+  "meta": { "status": "active" }
+}
+```
+
+Encode the resulting `Profile` to get this JSON:
+
+```json
+{
+  "displayName": "Aki",
+  "email": "a@example.net",
+  "meta": { "status": "active" },
+  "count": 0
+}
+```
+
+The decoder accepts `mail` as an alias and fills missing `count` with `0`.
+The encoder writes the canonical key `email`, always omits `cache`, and omits `locale` when it is `None`.
+
+### Complete generated codec
+
+These are the complete `ToJson` and `@json.FromJson` implementations for `Profile` in the generated file.
+
+```mbt nocheck
+///|
+pub impl ToJson for Profile with fn to_json(self) {
+  let obj : Map[String, Json] = Map([])
+  obj.set("displayName", ToJson::to_json(self.display_name))
+  obj.set("email", ToJson::to_json(self.address))
+  @serde.write_path(obj, ["meta", "status"], ToJson::to_json(self.status))
+  obj.set("count", ToJson::to_json(self.count))
+  if self.locale is Some(_) {
+    obj.set(
+      "locale",
+      match self.locale {
+        None => Json::null()
+        Some(option_1) => ToJson::to_json(option_1)
+      },
+    )
+  }
+  Json::object(obj)
+}
+
+///|
+pub impl @json.FromJson for Profile with fn from_json(value, path) {
+  let obj = @serde.object(value, path)
+  @serde.deny_unknown_paths(
+    obj,
+    [
+      ["displayName"],
+      ["email"],
+      ["mail"],
+      ["meta", "status"],
+      ["count"],
+      ["cache"],
+      ["locale"],
+    ],
+    path,
+  )
+  let f0 : String = match @serde.field(obj, "displayName", [], path) {
+    Some(value) => @json.from_json(value, path=path.add_key("displayName"))
+    None => @serde.missing_field(path.add_key("displayName"), "displayName")
+  }
+  let f1 : String = match @serde.field(obj, "email", ["mail"], path) {
+    Some(value) => @json.from_json(value, path=path.add_key("email"))
+    None => @serde.missing_field(path.add_key("email"), "email")
+  }
+  let f2 : String = match @serde.read_path(obj, ["meta", "status"], path) {
+    (Some(value), at, _) => @json.from_json(value, path=at)
+    (None, at, key) => @serde.missing_field(at, key)
+  }
+  let f3 : Int32 = match @serde.field(obj, "count", [], path) {
+    Some(value) => @json.from_json(value, path=path.add_key("count"))
+    None => Default::default()
+  }
+  let f4 : Int32 = Default::default()
+  let f5 : String? = match @serde.field(obj, "locale", [], path) {
+    Some(value) =>
+      match value {
+        Null => None
+        option_1 => Some(@json.from_json(option_1, path=path.add_key("locale")))
+      }
+    None => None
+  }
+  {
+    display_name: f0,
+    address: f1,
+    status: f2,
+    count: f3,
+    cache: f4,
+    locale: f5,
+  }
 }
 ```
 
