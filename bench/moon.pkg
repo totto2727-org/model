@@ -1,0 +1,8 @@
+import {
+  "moonbitlang/core/bench",
+  "moonbitlang/core/json",
+  "totto2727/lens",
+  "totto2727/serde",
+}
+
+pkgtype(kind: "executable")
