@@ -45,3 +45,8 @@ Run `moon fmt` after editing MoonBit code and `(cd src/cmd/serde-gen && moon fmt
 Run `moon info` to inspect public signatures locally.
 Do not commit generated package interfaces.
 To change a wire-format behavior, update the generator and check it through a compiled fixture, not just through a source snapshot.
+
+## Performance
+
+Optimize valid inputs first. Measure the successful path with `moon bench` and keep work needed only for diagnostics off that path when practical.
+Preserve useful errors. For changes that affect rejection, check that malformed inputs do not cause disproportionate CPU or memory use as input size grows.
