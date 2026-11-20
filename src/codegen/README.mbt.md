@@ -3,10 +3,11 @@
 Use `#custom.serde` to generate `ToJson` and `@json.FromJson` implementations.
 Do not derive the same traits on an annotated type.
 Add the model to a package that imports `moonbitlang/core/json` and `totto2727/serde`, then run `serde-gen --package DIR` before Moon.
-The generator discovers models in that directory and writes `serde.generated.mbt`.
+The generator discovers models in that directory and writes `serde.generated.mbt` with both JSON codecs and any Garde validators.
+Serde supports only JSON. It does not support custom codec hooks or flattening.
 
-The following examples show actual generated MoonBit code.
-An excerpt shows only the lines that implement the specified option.
+Each section shows a minimal annotated model, the generated MoonBit code or the relevant excerpt, and behavior that is not visible from the code alone.
+The examples use the standard MoonBit formatting.
 Variable names such as `f0` can change when fields move.
 
 ## `#custom.serde`: newtypes and tuple structs
@@ -58,6 +59,8 @@ pub impl @json.FromJson for Point with fn from_json(value, path) {
 
 ## `decode_only`: generate only a decoder
 
+Use `decode_only` for a model that only reads JSON. Its fields do not need to implement `ToJson`.
+
 ```mbt nocheck
 ///|
 #custom.serde(decode_only)
@@ -73,6 +76,28 @@ pub impl @json.FromJson for InputId with fn from_json(value, path) {
   InputId(f0)
 }
 ```
+
+## `encode_only`: generate only an encoder
+
+```mbt nocheck
+///|
+#custom.serde(encode_only)
+struct OutputId(Int32)
+```
+
+Generated code:
+
+```mbt nocheck
+///|
+pub impl ToJson for OutputId with fn to_json(self) {
+  match self {
+    OutputId(f0) => ToJson::to_json(f0)
+  }
+}
+```
+
+Use this for a model that only writes JSON. Its fields do not need `@json.FromJson`.
+Do not combine `encode_only` and `decode_only`. With neither, Serde generates both traits.
 
 ## Record options
 
@@ -139,6 +164,7 @@ let f1 : String = match @serde.field(obj, "email", ["mail"], path) {
 ### `path`: read and write a nested key
 
 `path=["meta", "status"]` uses the literal object keys `meta` and `status`, not array indices.
+It requires at least one key. Multiple fields can share a parent object.
 It cannot be combined with `rename` or `aliases` on the same field.
 No field path can be equal to or a prefix of another field path, including flat names and aliases.
 The encoder creates parent objects only when it writes a field at that path.
@@ -186,6 +212,8 @@ let f4 : Int32 = Default::default()
 ### `skip_serializing_if`: omit an empty optional field
 
 The supported predicate is `skip_serializing_if="Option::is_none"`. It omits `locale` when it is `None`. Without this attribute, the encoder writes `null`. In both cases, a missing key or JSON `null` decodes as `None`.
+For a nested `Option`, `None` and `Some(None)` both encode as `null` when written, and `null` decodes back as `None`.
+At the first non-optional type, Serde uses that type's own codec. For example, the array codec handles `Array[T?]`.
 
 Generated encoder excerpt:
 
@@ -224,6 +252,8 @@ Generated decoder excerpt:
 ```
 
 ## Enum options
+
+A single positional argument writes its value. Multiple positional arguments write a JSON array. Named arguments write a JSON object.
 
 ### External tag and variant `rename`
 
@@ -330,6 +360,7 @@ Generated encoder arm:
 ### `untagged`: use only the payload
 
 `untagged` writes the payload without an enum tag. The decoder tries the variants in declaration order and returns the first match. Here `Text("hello")` writes `"hello"` and `Count(5)` writes `5`.
+A unit variant writes `null`.
 
 ```mbt nocheck
 ///|
@@ -357,6 +388,7 @@ Use a tagged representation if more than one variant can decode the same JSON va
 ## Generic models
 
 The generator adds `ToJson` and `@json.FromJson` bounds for the necessary type parameters in each direction. A `default` or `skip` rule can also require `Default`.
+A skipped field does not require a JSON trait.
 
 ```mbt nocheck
 ///|
@@ -383,3 +415,9 @@ pub impl[T : @json.FromJson] @json.FromJson for Box[T] with fn from_json(
   Box(f0)
 }
 ```
+
+## Decode errors
+
+`@json.JsonDecodeError((path, message))` contains a JSON Pointer and a reason.
+If the example path `["meta", "status"]` is missing because `meta` is absent, the decoder reports `/meta`, not `/meta/status`.
+If no untagged variant matches, the message includes the path and reason for each variant.

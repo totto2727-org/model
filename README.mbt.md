@@ -111,6 +111,8 @@ import {
 ```
 
 From the module root, run the generator before `moon check`, `moon build`, or `moon test`.
+One invocation discovers both `#custom.serde` and `#custom.garde` and writes all generated code to `serde.generated.mbt`.
+Import `totto2727/serde/garde` only if the package uses Garde attributes.
 For example:
 
 ```sh
@@ -134,7 +136,7 @@ Use the Mooncakes version selector to read the documentation for the version you
 - [Serde attributes](https://mooncakes.io/docs/totto2727/serde/codegen): `#custom.serde` examples and generated codec excerpts.
 - [Garde API and attributes](https://mooncakes.io/docs/totto2727/serde/garde): Validation types, `#custom.garde` examples, and generated validator excerpts. Select a release that includes Garde.
 
-For command-line options, see the [`serde-gen` reference](https://github.com/totto2727-org/serde/blob/main/docs/reference.md#serde-gen).
+For command-line options, see the [`serde-gen` reference](https://github.com/totto2727-org/serde/blob/main/docs/reference.md).
 
 ## Development
 

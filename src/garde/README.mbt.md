@@ -1,26 +1,32 @@
 # Garde attributes
 
 Use `#custom.garde` to generate validators for MoonBit values.
-Generate the code with `serde-gen --validate --package DIR`, where `DIR` contains the annotated models and imports `totto2727/serde/garde`.
-The generator discovers models in that directory and writes `garde.generated.mbt`.
+Generate the code with `serde-gen --package DIR`, where `DIR` contains the annotated models and imports `totto2727/serde/garde`.
+The generator writes validators and any JSON codecs to `serde.generated.mbt` in the same run.
 
 Validation does not run during JSON decoding.
 After decoding with Serde, call `@garde.validate(value)` or, for a model with a validation context, `value.validate_with(context)`.
 You can also validate values that you construct directly.
 The report uses MoonBit field names, not JSON keys set by Serde.
+Call `report.violations()` to read the individual violations and `issue.path.segments()` to read their typed `Field` and `Index` segments.
+This library follows Rust garde's explicit validation model, but does not implement the full Rust rule set.
 
-The following sections pair each annotation with excerpts from the generated code.
+Each section shows a minimal annotated model, the generated MoonBit code or the relevant excerpt, and behavior that is not visible from the code alone.
+The examples use the standard MoonBit formatting.
 Place the input examples in the same package to use them together.
 
 ## `#custom.garde`, `required`, `length`, `range`, and `skip`
 
 The type marker generates an implementation of `@garde.Validate`.
 By default, a field must have a validation rule or `skip`.
+Use a non-optional type if absence should fail during decoding. The following example checks a non-empty `String` and uses `required` on an optional field only to report its absence at validation time.
 
 ```mbt nocheck
 ///|
 #custom.garde
 pub struct Contact {
+  #custom.garde(length(min="1"))
+  label : String
   #custom.garde(required, length(min="2", max="80"))
   name : String?
   #custom.garde(range(min="0", max="120"))
@@ -31,7 +37,8 @@ pub struct Contact {
 ```
 
 This is the complete generated implementation.
-`required` adds a violation for `None`; `length` runs only on `Some`.
+`required` adds a violation for `None` without changing the type from `String?`. This lets an application collect a missing value together with other validation errors.
+`required` does not reject `Some("")` by itself. On an optional field, the `length` rule runs only on `Some`.
 `range` applies inclusive bounds, and `skip` omits `notes` from the implementation.
 
 ```mbt nocheck
@@ -41,6 +48,13 @@ pub impl @garde.Validate for Contact with fn collect(
   garde_report,
   garde_path,
 ) {
+  {
+    let garde_value = garde_self.label
+    let garde_path = garde_path.field("label")
+    if @garde.length(garde_value, Some(1), None) is Some(message) {
+      garde_report.add(garde_path, message)
+    }
+  }
   {
     let garde_value = garde_self.name
     let garde_path = garde_path.field("name")
@@ -61,8 +75,8 @@ pub impl @garde.Validate for Contact with fn collect(
 }
 ```
 
-`length` counts UTF-8 bytes for strings and items for arrays, or uses your type's `@garde.Length` implementation.
-Use quoted decimal bounds with `length` and `range`: `min`, `max`, both, or `equal` alone.
+`length` counts UTF-8 bytes for `String` and items for `Array`, `ReadOnlyArray`, and `FixedArray`. Other types can implement `@garde.Length`.
+Use quoted decimal bounds with `length` and `range`: `min`, `max`, both, or `equal` alone. The MoonBit attribute parser does not accept bare integers in these rules.
 Use `skip` alone on a field, payload, or variant.
 
 ## `ascii`, `alphanumeric`, `contains`, `prefix`, `suffix`, and `custom`
@@ -129,7 +143,7 @@ Each rule can add a separate violation to the same field path.
 
 Use `allow_unvalidated` on a type or variant to permit unmarked fields.
 Use `dive` to run the nested type's `Validate` implementation.
-Use `inner` to apply one or more rules to each array item.
+Use `inner` to apply one or more rules to each item of an `Array`, `ReadOnlyArray`, or `FixedArray`.
 
 ```mbt nocheck
 ///|
@@ -237,6 +251,7 @@ pub impl[T : @garde.Validate] @garde.Validate for Update[T] with fn collect(
 A direct `length` check on `T` adds a `Length` bound.
 Use `bounds` to specify a parameter's bounds when the needed traits cannot be inferred, for example when `dive` targets a wrapper around `T`.
 Valid lists include `[Length]`, `[Validate, Length]`, and `[]` to suppress that parameter's inferred bounds.
+Unused or skipped type parameters need no bound.
 
 ```mbt nocheck
 ///|
@@ -264,6 +279,7 @@ pub impl[T :  @garde.Length] @garde.Validate for Envelope[T] with fn collect(
 Use `context=Policy` to generate `validate_with` and `collect_with` methods instead of a `Validate` implementation.
 `custom_with(check_count)` passes the field value and the context to `check_count`.
 `dive_with` passes the same context to a nested validator, including under `inner`.
+Ordinary rules and context-free `dive` can still be used on the same model.
 
 ```mbt nocheck
 ///|

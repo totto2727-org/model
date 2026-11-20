@@ -6,8 +6,4 @@ import {
 
 rule(name: "serde", command: "serde-gen $input --output $output")
 
-dev_build(
-  rule: "serde",
-  input: "models.mbt",
-  output: "serde.generated.mbt",
-)
+dev_build(rule: "serde", input: "models.mbt", output: "serde.generated.mbt")
