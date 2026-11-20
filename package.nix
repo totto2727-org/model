@@ -1,28 +1,15 @@
 {
   pkgs,
-  lib,
   moonNix,
   toolchain,
   moonRegistryIndex,
   admiralSrc,
 }:
-let
-  builders = moonNix.lib.mkMoonNix { inherit pkgs toolchain; };
-  project = builders.parseManifest "module" (builtins.readFile ./moon.mod);
-in
-(builders.buildNative {
+(moonNix.lib.mkMoonNix { inherit pkgs toolchain; }).buildProject {
   src = ./src/cmd/serde-gen;
+  registry = moonRegistryIndex.outPath;
   localSources = [
     ./.
     admiralSrc
   ];
-  registry = moonRegistryIndex.outPath;
-}).overrideAttrs
-  (previous: {
-    version = project.version;
-    meta = previous.meta // {
-      inherit (project) description;
-      homepage = project.repository;
-      license = lib.meta.getLicenseFromSpdxId project.license;
-    };
-  })
+}

@@ -2,6 +2,12 @@ name = "totto2727/serde-gen"
 
 version = "0.1.0"
 
+repository = "https://github.com/totto2727-org/serde"
+
+license = "MIT"
+
+description = "Generate MoonBit serialization and deserialization code"
+
 preferred_target = "native"
 
 import {
