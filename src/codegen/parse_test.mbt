@@ -158,6 +158,12 @@ test "invalid serde options fail instead of producing codecs" {
         "#custom.serde(decode_only)\nstruct S { x : Int } derive(FromJson)", "conflicts with a JSON deriving directive",
       ),
       (
+        "#custom.serde(encode_only)\nstruct S { x : Int } derive(ToJson)", "conflicts with a JSON deriving directive",
+      ),
+      (
+        "#custom.serde(encode_only, decode_only)\nstruct S(Int)", "encode_only and decode_only are mutually exclusive",
+      ),
+      (
         "#custom.serde\nenum E { V(Int, name~ : Int) }", "mixed named and positional",
       ),
     ] {

@@ -202,6 +202,23 @@ pub enum GenericUntagged[T] {
 pub struct ReadOnlyBox[T](T)
 
 ///|
+#custom.serde(encode_only)
+pub(all) struct WriteOnlyRecord[T] {
+  #custom.serde(rename="id")
+  identifier : T
+}
+
+///|
+#custom.serde(encode_only)
+pub(all) struct WriteOnlyTuple[T](T, Bool)
+
+///|
+#custom.serde(encode_only, tag="type", content="data")
+pub(all) enum WriteOnlyEvent[T] {
+  Value(T)
+}
+
+///|
 #derive(Default)
 pub struct DefaultOnly(Int32)
 
