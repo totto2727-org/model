@@ -409,6 +409,9 @@ fn emit_record(out : Array[@syntax.Impl], record : RecordDef) -> Unit {
       encode_impl(record.name, record.params, bounds, record.is_private, body),
     )
   }
+  if record.encode_only {
+    return
+  }
   let result = ast_record(
     record.fields.mapi((i, field) => (field.name, ast_ident(field_local(i)))),
   )
@@ -497,6 +500,9 @@ fn emit_tuple(out : Array[@syntax.Impl], tuple : TupleDef) -> Unit {
     out.push(
       encode_impl(tuple.name, tuple.params, bounds, tuple.is_private, body),
     )
+  }
+  if tuple.encode_only {
+    return
   }
   let result = variant_expr(
     tuple.name,
@@ -791,7 +797,9 @@ pub fn emit(definitions : Array[Definition]) -> String {
         if !sum.decode_only {
           out.push(emit_enum_encode(sum))
         }
-        emit_enum_decode(out, sum)
+        if !sum.encode_only {
+          emit_enum_decode(out, sum)
+        }
       }
     }
   }

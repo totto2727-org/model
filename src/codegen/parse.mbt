@@ -383,6 +383,7 @@ fn parse_definition(decl : @syntax.TypeDecl) -> Definition? raise GenerateError 
   let context = Show::to_string(decl.loc)
   let options = serde_options(decl.attrs, [
     "rename_all", "tag", "content", "untagged", "deny_unknown_fields", "decode_only",
+    "encode_only",
   ])
   guard options is Some(options) else {
     match decl.components {
@@ -419,9 +420,14 @@ fn parse_definition(decl : @syntax.TypeDecl) -> Definition? raise GenerateError 
     params.push(param_name)
   }
   let decode_only = flag_option(options, "decode_only", context)
+  let encode_only = flag_option(options, "encode_only", context)
+  if decode_only && encode_only {
+    serde_error(context, "encode_only and decode_only are mutually exclusive")
+  }
   for directive in decl.deriving {
     match directive.type_name.name {
       Ident(name="ToJson") | Dot(id="ToJson", ..) if decode_only => ()
+      Ident(name="FromJson") | Dot(id="FromJson", ..) if encode_only => ()
       Ident(name="ToJson" | "FromJson") | Dot(id="ToJson" | "FromJson", ..) =>
         serde_error(
           context, "#custom.serde conflicts with a JSON deriving directive",
@@ -465,13 +471,14 @@ fn parse_definition(decl : @syntax.TypeDecl) -> Definition? raise GenerateError 
           fields: parsed,
           deny_unknown_fields,
           decode_only,
+          encode_only,
           is_private,
         }),
       )
     }
     TupleStruct(types) => {
       for option, _ in options {
-        if option != "decode_only" {
+        if option != "decode_only" && option != "encode_only" {
           serde_error(context, "\{option} is not allowed on a tuple struct")
         }
       }
@@ -480,7 +487,16 @@ fn parse_definition(decl : @syntax.TypeDecl) -> Definition? raise GenerateError 
         validate_type(ty)
         elements.push(ty)
       }
-      Some(TupleStruct({ name, params, elements, decode_only, is_private, }))
+      Some(
+        TupleStruct({
+          name,
+          params,
+          elements,
+          decode_only,
+          encode_only,
+          is_private,
+        }),
+      )
     }
     Variant(constructors) => {
       if options.contains("deny_unknown_fields") {
@@ -513,7 +529,17 @@ fn parse_definition(decl : @syntax.TypeDecl) -> Definition? raise GenerateError 
       if variants.is_empty() {
         serde_error(context, "empty serde enums are unsupported")
       }
-      Some(Sum({ name, params, variants, repr, decode_only, is_private, }))
+      Some(
+        Sum({
+          name,
+          params,
+          variants,
+          repr,
+          decode_only,
+          encode_only,
+          is_private,
+        }),
+      )
     }
     _ =>
       raise GenerateError(
