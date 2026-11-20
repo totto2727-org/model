@@ -6,8 +6,8 @@ const OUTPUT_OPTION = "output"
 
 ///|
 const USAGE =
-  #|Usage: serde-gen [--validate] INPUT... --output OUTPUT
-  #|       serde-gen [--validate] --package DIR
+  #|Usage: serde-gen --package DIR
+  #|       serde-gen INPUT... --output OUTPUT
 
 ///|
 priv suberror CliError {
@@ -23,13 +23,7 @@ priv enum GenerateOptions {
 }
 
 ///|
-priv enum Mode {
-  JsonCodecs
-  Validation
-}
-
-///|
-async fn run(args : ArrayView[String], mode : Mode) -> Unit {
+async fn run(args : ArrayView[String]) -> Unit {
   // Preserve the existing grammar and usage status before core argparse can exit.
   let package_flag = "--" + PACKAGE_OPTION
   let output_flag = "--" + OUTPUT_OPTION
@@ -58,8 +52,8 @@ async fn run(args : ArrayView[String], mode : Mode) -> Unit {
         None => Files(ctx.get_strings(inputs), ctx.get_string_required(output))
       }
       match options {
-        Package(directory) => generate_package(directory, mode)
-        Files(inputs, output) => generate_files(inputs, output, mode)
+        Package(directory) => generate_package(directory)
+        Files(inputs, output) => generate_files(inputs, output)
       }
     }),
   )
@@ -70,32 +64,34 @@ async fn run(args : ArrayView[String], mode : Mode) -> Unit {
 fn generate_files(
   inputs : ReadOnlyArray[String],
   output : String,
-  mode : Mode,
 ) -> Unit raise {
   let sources : Array[(String, String)] = []
   for input in inputs {
     sources.push((input, @fs.read_file_to_string(input)))
   }
-  generate(sources, output, mode)
+  generate(sources, output)
 }
 
 ///|
 fn generate(
   sources : Array[(String, String)],
   output : String,
-  mode : Mode,
 ) -> Unit raise {
-  let (header, generated) = match mode {
-    JsonCodecs => (@codegen.GENERATED_HEADER, @codegen.generate_many(sources))
-    Validation =>
-      (@garde_codegen.GENERATED_HEADER, @garde_codegen.generate_many(sources))
-  }
+  // Filter on the contiguous lexer token. Only the AST confirms an attribute.
+  let codecs = @codegen.generate_many(
+    sources.filter(source => source.1.contains("#custom.serde")),
+  )
+  let validation = @garde_codegen.generate_many(
+    sources.filter(source => source.1.contains("#custom.garde")),
+  )
+  let validation = validation.strip_prefix(@garde_codegen.GENERATED_HEADER + "\n").unwrap()
+  let generated = codecs + validation.to_string()
   if @fs.path_exists(output) {
     let previous = @fs.read_file_to_string(output)
     if previous == generated {
       return
     }
-    if !previous.has_prefix(header + "\n") ||
+    if !previous.has_prefix(@codegen.GENERATED_HEADER + "\n") ||
       sources.any(fn(source) { source.1 == previous }) {
       raise RefuseOverwrite(output)
     }
@@ -123,11 +119,7 @@ async fn main {
     println(USAGE)
     return
   }
-  let (mode, args) = match args {
-    ["--validate", .. rest] => (Validation, rest)
-    _ => (JsonCodecs, args)
-  }
-  run(args, mode) catch {
+  run(args) catch {
     Usage => {
       eprintln(USAGE)
       @sys.exit(2)

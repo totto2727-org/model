@@ -11,7 +11,7 @@ fn common_source(name : String) -> Bool {
 }
 
 ///|
-fn generate_package(directory : String, mode : Mode) -> Unit raise {
+fn generate_package(directory : String) -> Unit raise {
   let package_path = @path.Path(directory)
   fn in_package(name : String) -> String {
     package_path.join(@path.Path(name)).to_string()
@@ -23,22 +23,14 @@ fn generate_package(directory : String, mode : Mode) -> Unit raise {
   }
   let entries = @fs.read_dir(directory).to_owned()
   entries.sort()
-  let (marker, output) = match mode {
-    JsonCodecs => ("#custom.serde", "serde.generated.mbt")
-    Validation => ("#custom.garde", "garde.generated.mbt")
-  }
   let sources : Array[(String, String)] = []
   for name in entries {
     if common_source(name) {
       let input = in_package(name)
       if @fs.is_file(input) {
-        let source = @fs.read_file_to_string(input)
-        // The lexer requires contiguous `#namespace.name`. Only the AST confirms an attribute.
-        if source.contains(marker) {
-          sources.push((input, source))
-        }
+        sources.push((input, @fs.read_file_to_string(input)))
       }
     }
   }
-  generate(sources, in_package(output), mode)
+  generate(sources, in_package("serde.generated.mbt"))
 }
