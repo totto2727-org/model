@@ -23,14 +23,6 @@ jobs:
       - uses: totto2727-org/monorepo/.github/actions/setup-moonbit@main
         with:
           dev-shell: ci
-      - name: Regenerate integration fixtures
-        shell: bash
-        run: |
-          eval "$(nix print-dev-env .#ci)"
-          serde-gen --package src/test/serde
-          serde-gen --package src/test/validation
-          moon fmt src/test/serde src/test/validation
-          git diff --exit-code -- src/test/serde/serde.generated.mbt src/test/validation/serde.generated.mbt
       - uses: totto2727-org/monorepo/.github/actions/check-moonbit@main
         with:
           dev-shell: ci

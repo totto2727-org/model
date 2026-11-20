@@ -39,7 +39,7 @@ moon fmt src/test/serde src/test/validation
 ```
 
 Only these packages' `serde.generated.mbt` files are tracked, so the generated changes can be reviewed with the models.
-CI regenerates both packages and checks that the tracked results match before running tests.
+CI tests the committed fixtures.
 
 Run `moon fmt` after editing MoonBit code and `(cd src/cmd/serde-gen && moon fmt)` after editing the CLI.
 Run `moon info` to inspect public signatures locally.
