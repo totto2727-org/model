@@ -326,6 +326,101 @@ pub impl @json.FromJson for Confirmation with fn from_json(value, path) {
 }
 
 ///|
+pub impl ToJson for ContactDetails with fn to_json(self) {
+  let obj : Map[String, Json] = Map([])
+  obj.set("email", ToJson::to_json(self.email))
+  obj.set("website", ToJson::to_json(self.website))
+  obj.set("addresses", ToJson::to_json(self.addresses))
+  obj.set(
+    "v4",
+    match self.v4 {
+      None => Json::null()
+      Some(option_1) => ToJson::to_json(option_1)
+    },
+  )
+  obj.set(
+    "v6",
+    match self.v6 {
+      None => Json::null()
+      Some(option_1) => ToJson::to_json(option_1)
+    },
+  )
+  obj.set(
+    "card",
+    match self.card {
+      None => Json::null()
+      Some(option_1) => ToJson::to_json(option_1)
+    },
+  )
+  obj.set(
+    "phone",
+    match self.phone {
+      None => Json::null()
+      Some(option_1) => ToJson::to_json(option_1)
+    },
+  )
+  Json::object(obj)
+}
+
+///|
+pub impl @json.FromJson for ContactDetails with fn from_json(value, path) {
+  let obj = @serde.object(value, path)
+  let f0 : String = match @serde.field(obj, "email", [], path) {
+    Some(value) => @json.from_json(value, path=path.add_key("email"))
+    None => @serde.missing_field(path.add_key("email"), "email")
+  }
+  let f1 : String = match @serde.field(obj, "website", [], path) {
+    Some(value) => @json.from_json(value, path=path.add_key("website"))
+    None => @serde.missing_field(path.add_key("website"), "website")
+  }
+  let f2 : Array[String] = match @serde.field(obj, "addresses", [], path) {
+    Some(value) => @json.from_json(value, path=path.add_key("addresses"))
+    None => @serde.missing_field(path.add_key("addresses"), "addresses")
+  }
+  let f3 : String? = match @serde.field(obj, "v4", [], path) {
+    Some(value) =>
+      match value {
+        Null => None
+        option_1 => Some(@json.from_json(option_1, path=path.add_key("v4")))
+      }
+    None => None
+  }
+  let f4 : String? = match @serde.field(obj, "v6", [], path) {
+    Some(value) =>
+      match value {
+        Null => None
+        option_1 => Some(@json.from_json(option_1, path=path.add_key("v6")))
+      }
+    None => None
+  }
+  let f5 : String? = match @serde.field(obj, "card", [], path) {
+    Some(value) =>
+      match value {
+        Null => None
+        option_1 => Some(@json.from_json(option_1, path=path.add_key("card")))
+      }
+    None => None
+  }
+  let f6 : String? = match @serde.field(obj, "phone", [], path) {
+    Some(value) =>
+      match value {
+        Null => None
+        option_1 => Some(@json.from_json(option_1, path=path.add_key("phone")))
+      }
+    None => None
+  }
+  {
+    email: f0,
+    website: f1,
+    addresses: f2,
+    v4: f3,
+    v6: f4,
+    card: f5,
+    phone: f6,
+  }
+}
+
+///|
 pub impl @garde.Validate for Address with fn collect(
   garde__self,
   garde__report,
@@ -634,5 +729,128 @@ pub impl[T : Eq] @garde.Validate for Same[T] with fn collect(
   let garde__path = garde__path.field("repeated")
   if garde__value != garde__self.original {
     garde__report.add(garde__path, "must match original")
+  }
+}
+
+///|
+pub impl @garde.Validate for ContactDetails with fn collect(
+  garde__self,
+  garde__report,
+  garde__path,
+) {
+  {
+    let garde__value = garde__self.email
+    let garde__path = garde__path.field("email")
+    if @garde.email(garde__value) is Some(message) {
+      garde__report.add(garde__path, message)
+    }
+  }
+  {
+    let garde__value = garde__self.website
+    let garde__path = garde__path.field("website")
+    if @garde.url(garde__value) is Some(message) {
+      garde__report.add(garde__path, message)
+    }
+  }
+  {
+    let garde__value = garde__self.addresses
+    let garde__path = garde__path.field("addresses")
+    for garde__index, garde__value in garde__value {
+      let garde__path = garde__path.index(garde__index)
+      if @garde.ip(garde__value) is Some(message) {
+        garde__report.add(garde__path, message)
+      }
+    }
+  }
+  {
+    let garde__value = garde__self.v4
+    let garde__path = garde__path.field("v4")
+    if garde__value is Some(garde__value) {
+      if @garde.ipv4(garde__value) is Some(message) {
+        garde__report.add(garde__path, message)
+      }
+    }
+  }
+  {
+    let garde__value = garde__self.v6
+    let garde__path = garde__path.field("v6")
+    if garde__value is Some(garde__value) {
+      if @garde.ipv6(garde__value) is Some(message) {
+        garde__report.add(garde__path, message)
+      }
+    }
+  }
+  {
+    let garde__value = garde__self.card
+    let garde__path = garde__path.field("card")
+    if garde__value is Some(garde__value) {
+      if @garde.credit_card(garde__value) is Some(message) {
+        garde__report.add(garde__path, message)
+      }
+    }
+  }
+  let garde__value = garde__self.phone
+  let garde__path = garde__path.field("phone")
+  if garde__value is Some(garde__value) {
+    if @garde.phone_number(garde__value) is Some(message) {
+      garde__report.add(garde__path, message)
+    }
+  }
+}
+
+///|
+pub impl @garde.Validate for ProductCode with fn collect(
+  garde__self,
+  garde__report,
+  garde__path,
+) {
+  match garde__self {
+    ProductCode(garde__item0) => {
+      let garde__value = garde__item0
+      let garde__path = garde__path
+      if !is_uppercase_code(garde__value) {
+        garde__report.add(garde__path, "does not match the pattern")
+      }
+    }
+  }
+}
+
+///|
+pub impl @garde.Validate for OrderChecks with fn collect(
+  garde__self,
+  garde__report,
+  garde__path,
+) {
+  {
+    let garde__value = garde__self.product
+    let garde__path = garde__path.field("product")
+    if is_strict(garde__self) {
+      if garde__value is None {
+        garde__report.add(garde__path, "is required")
+      }
+      if garde__value is Some(garde__value) {
+        @garde.Validate::collect(garde__value, garde__report, garde__path)
+      }
+    }
+  }
+  {
+    let garde__value = garde__self.quantity
+    let garde__path = garde__path.field("quantity")
+    if @garde.range(garde__value, Some(MINIMUM_WIDE), None) is Some(message) {
+      garde__report.add(garde__path, message)
+    }
+  }
+  {
+    let garde__value = garde__self.multiplier
+    let garde__path = garde__path.field("multiplier")
+    if @garde.range(garde__value, Some(0.5), Some(2.5)) is Some(message) {
+      garde__report.add(garde__path, message)
+    }
+  }
+  let garde__value = garde__self.allocations
+  let garde__path = garde__path.field("allocations")
+  for garde__index, garde__value in garde__value {
+    let garde__path = garde__path.index(garde__index)
+    garde__value.collect_with(garde__self.policy, garde__report, garde__path)
   }
 }

@@ -13,7 +13,10 @@ test "reject invalid rules at the field's source location" {
       ("custom_with(check)", "String", "custom_with requires context"),
       ("dive_with", "String", "dive_with requires context"),
       ("pattern(\"[\")", "String", "invalid regular expression"),
-      ("pattern(regex)", "String", "pattern expects one quoted"),
+      ("pattern(regex, extra)", "String", "pattern expects one quoted"),
+      ("when_with(condition, ascii)", "String", "when_with requires context"),
+      ("when(condition)", "String", "expected at least one garde rule"),
+      ("dive_with(missing)", "String", "expects the name of a sibling"),
       ("matches(\"value\")", "String", "matches expects one unqualified"),
       ("matches(missing)", "String", "unknown record field: missing"),
       (

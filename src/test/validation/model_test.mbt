@@ -79,6 +79,58 @@ fn[T : @garde.Validate] invalid_paths(value : T) -> Array[String] raise {
 }
 
 ///|
+test "contact rules check formats only after a successful decode" {
+  let contact : @validation.ContactDetails = @json.from_json({
+    "email": "aki@example.com",
+    "website": "https://example.com/profile",
+    "addresses": ["192.0.2.20", "2001:db8::1"],
+    "v4": "192.0.2.20",
+    "v6": "2001:db8::1",
+    "card": "4111111111111111",
+    "phone": "+81 90-1234-5678",
+  })
+  assert_true(@garde.validate(contact) is Ok(_))
+  let invalid : @validation.ContactDetails = {
+    email: "no-domain@",
+    website: "/profile",
+    addresses: ["example.com"],
+    v4: Some("2001:db8::1"),
+    v6: Some("192.0.2.20"),
+    card: Some("4111111111111112"),
+    phone: Some("+81 90-1234"),
+  }
+  assert_eq(invalid_paths(invalid), [
+    "email", "website", "addresses[0]", "v4", "v6", "card", "phone",
+  ])
+}
+
+///|
+test "typed bounds, sibling context, and conditional transparent validation preserve paths" {
+  let defaults : @validation.OrderChecks = {
+    strict: false,
+    product: Some(@validation.ProductCode("missing-prefix")),
+    quantity: 9007199254740993L,
+    multiplier: 0.5,
+    policy: { max_count: 2, },
+    allocations: [{ count: 2, }],
+  }
+  assert_true(@garde.validate(defaults) is Ok(_))
+  assert_eq(invalid_paths({ ..defaults, strict: true, }), ["product"])
+  assert_eq(invalid_paths({ ..defaults, strict: true, product: None, }), [
+    "product",
+  ])
+  assert_eq(
+    invalid_paths({
+      ..defaults,
+      quantity: 9007199254740992L,
+      multiplier: 2.6,
+      allocations: [{ count: 3, }],
+    }),
+    ["quantity", "multiplier", "allocations[0].count"],
+  )
+}
+
+///|
 test "regex and sibling constraints run only after JSON decoding" {
   let value : @validation.Confirmation = @json.from_json({
     "code": "prefix-ID-42.",

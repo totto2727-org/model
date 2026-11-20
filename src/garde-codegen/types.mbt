@@ -1,6 +1,7 @@
 ///|
 priv struct Settings {
   allow_unvalidated : Bool
+  transparent : Bool
   context : String?
   bounds : Map[String, Array[String]]
   selectors : Map[String, Array[Rule]]
@@ -50,6 +51,7 @@ fn settings(
   variant~ : Bool = false,
 ) -> Settings raise GenerateError {
   let mut allow_unvalidated = false
+  let mut transparent = false
   let mut context = None
   let bounds = Map([])
   let selectors = Map([])
@@ -57,6 +59,8 @@ fn settings(
     match prop {
       Expr(Ident({ qual: None, name: "allow_unvalidated", })) if !allow_unvalidated =>
         allow_unvalidated = true
+      Expr(Ident({ qual: None, name: "transparent", })) if !variant &&
+        !transparent => transparent = true
       Labeled("context", Ident({ qual, name, })) if !variant && context is None =>
         context = Some(
           match qual {
@@ -80,11 +84,19 @@ fn settings(
           .to_array()
           .map(trait_ => {
             match trait_ {
-              Ident({ qual: None, name: "Validate" | "Length" | "Eq" as name, }) =>
-                name
+              Ident(
+                {
+                  qual: None,
+                  name: "Validate"
+                  | "Length"
+                  | "Eq"
+                  | "Compare"
+                  | "Show" as name,
+                },
+              ) => name
               _ =>
                 raise GenerateError(
-                  "\{at}: bounds supports Validate, Length, and Eq",
+                  "\{at}: bounds supports Validate, Length, Eq, Compare, and Show",
                 )
             }
           })
@@ -105,7 +117,7 @@ fn settings(
       _ => fail(at, "unknown, invalid, or repeated #custom.garde option")
     }
   }
-  { allow_unvalidated, context, bounds, selectors, }
+  { allow_unvalidated, transparent, context, bounds, selectors, }
 }
 
 ///|
@@ -146,9 +158,11 @@ fn record_body(
   fields : @list.List[@syntax.FieldDecl],
   opts : Settings,
   emitter : Emitter,
+  at : String,
 ) -> String raise GenerateError {
   let out = StringBuilder()
   let p = emitter.prefix
+  let mut validated = 0
   for field in fields {
     match options(field.attrs) {
       None if !opts.allow_unvalidated =>
@@ -159,18 +173,29 @@ fn record_body(
       None => ()
       Some((at, props)) => {
         let name = field.name.label
+        let rules = field_rules(props, at)
+        if !rules.is_empty() {
+          validated += 1
+        }
         emit_field(
           out,
           field.ty,
-          field_rules(props, at),
+          rules,
           at,
           emitter,
           "\{p}self.\{name}",
-          "\{p}path.field(\"\{name}\")",
+          if opts.transparent {
+            "\{p}path"
+          } else {
+            "\{p}path.field(\"\{name}\")"
+          },
           record=Some((name, fields)),
         )
       }
     }
+  }
+  if opts.transparent && validated != 1 {
+    fail(at, "transparent requires exactly one validated field")
   }
   out.to_string()
 }
@@ -189,6 +214,7 @@ fn payload_arm(
   let body = StringBuilder()
   let patterns = []
   let used = Map([])
+  let mut validated = 0
   for index, slot in slots {
     let (key, path) = slot_path(slot.label, index)
     let bindings = match opts.selectors.get(key) {
@@ -197,6 +223,7 @@ fn payload_arm(
         if rules.is_empty() {
           "_"
         } else {
+          validated += 1
           let binding = "\{p}item\{index}"
           let parent = if variant {
             "\{p}path.field(\"\{name}\")"
@@ -210,7 +237,11 @@ fn payload_arm(
             at,
             emitter,
             binding,
-            "\{parent}.\{path}",
+            if opts.transparent {
+              parent
+            } else {
+              "\{parent}.\{path}"
+            },
           )
           binding
         }
@@ -232,6 +263,9 @@ fn payload_arm(
     if !used.contains(key) {
       fail(at, "no payload field for selector \{key} in \{name}")
     }
+  }
+  if opts.transparent && validated != 1 {
+    fail(at, "transparent requires exactly one validated field")
   }
   let body = body.to_string()
   if body.is_empty() {
@@ -352,7 +386,7 @@ fn emit_declaration(
     explicit_bounds: opts.bounds,
   }
   let body = match decl.components {
-    Record(fields~, ..) => record_body(fields, opts, emitter)
+    Record(fields~, ..) => record_body(fields, opts, emitter, at)
     TupleStruct(types) => {
       let slots : Array[Slot] = types.to_array().map(ty => { label: None, ty, })
       match payload_arm(decl.tycon, slots, opts, at, emitter, variant=false) {
@@ -360,7 +394,12 @@ fn emit_declaration(
         None => ""
       }
     }
-    Variant(variants) => enum_body(variants, opts, emitter)
+    Variant(variants) => {
+      if opts.transparent {
+        fail(at, "transparent is only supported on structs")
+      }
+      enum_body(variants, opts, emitter)
+    }
     _ =>
       raise GenerateError(
         "\{at}: #custom.garde supports record structs, tuple structs, and enums",
@@ -374,7 +413,13 @@ fn emit_declaration(
       param +
       " : " +
       traits
-      .map(name => if name == "Eq" { "Eq" } else { "@garde.\{name}" })
+      .map(name => {
+        if name == "Validate" || name == "Length" {
+          "@garde.\{name}"
+        } else {
+          name
+        }
+      })
       .join(" + ")
     }
   })

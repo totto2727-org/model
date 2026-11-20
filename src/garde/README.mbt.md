@@ -179,13 +179,13 @@ pub impl @garde.Validate for Contact with fn collect(
 }
 ```
 
-`length` uses MoonBit's `String.length()` (UTF-16 code units) for strings and counts items for `Array`, `ReadOnlyArray`, and `FixedArray`. Other types can implement `@garde.Length`.
-Use quoted decimal bounds with `length` and `range`: `min`, `max`, both, or `equal` alone. The MoonBit attribute parser does not accept bare integers in these rules.
+`length` uses MoonBit's `String.length()` (UTF-16 code units) for strings and counts items for arrays, maps, and byte strings. Other types can implement `@garde.Length`.
+Use `min`, `max`, both, or `equal` alone. Quote decimal bounds because the MoonBit attribute parser does not accept bare numeric literals. `range` also accepts a named constant and compares values in their own type, without converting the value to `Double`.
 Use `skip` alone on a field, payload, or variant.
 
 ### `ascii`, `alphanumeric`, `contains`, `prefix`, `suffix`, and `custom`
 
-`ascii` accepts only ASCII characters, and `alphanumeric` accepts only ASCII letters and digits.
+`ascii` accepts only ASCII characters. `alphanumeric` accepts Unicode alphabetic and numeric characters.
 Use `length(min="1")` if an empty string should also fail.
 `contains`, `prefix`, and `suffix` are case-sensitive and accept JSON-compatible escapes in their arguments.
 A function passed to `custom` receives the field value and returns `None` on success or `Some(message)` on failure.
@@ -243,9 +243,106 @@ Each rule can add a separate violation to the same field path.
   }
 ```
 
+### `email`, `url`, `ip`, `ipv4`, `ipv6`, `phone_number`, and `credit_card`
+
+Apply these rules to strings. For an optional string, validation skips `None` unless you also apply `required`.
+
+```mbt nocheck
+///|
+#custom.garde
+struct ContactFormats {
+  #custom.garde(email)
+  email : String
+  #custom.garde(url)
+  website : String
+  #custom.garde(ip)
+  address : String
+  #custom.garde(ipv4)
+  address_v4 : String
+  #custom.garde(ipv6)
+  address_v6 : String
+  #custom.garde(phone_number)
+  phone : String
+  #custom.garde(credit_card)
+  card : String
+}
+```
+
+Generated checks inside `@garde.Validate::collect`:
+
+```mbt nocheck
+///|
+impl @garde.Validate for ContactFormats with fn collect(
+  garde_self,
+  garde_report,
+  garde_path,
+) {
+  {
+    let garde_value = garde_self.email
+    let garde_path = garde_path.field("email")
+    if @garde.email(garde_value) is Some(message) {
+      garde_report.add(garde_path, message)
+    }
+  }
+  {
+    let garde_value = garde_self.website
+    let garde_path = garde_path.field("website")
+    if @garde.url(garde_value) is Some(message) {
+      garde_report.add(garde_path, message)
+    }
+  }
+  {
+    let garde_value = garde_self.address
+    let garde_path = garde_path.field("address")
+    if @garde.ip(garde_value) is Some(message) {
+      garde_report.add(garde_path, message)
+    }
+  }
+  {
+    let garde_value = garde_self.address_v4
+    let garde_path = garde_path.field("address_v4")
+    if @garde.ipv4(garde_value) is Some(message) {
+      garde_report.add(garde_path, message)
+    }
+  }
+  {
+    let garde_value = garde_self.address_v6
+    let garde_path = garde_path.field("address_v6")
+    if @garde.ipv6(garde_value) is Some(message) {
+      garde_report.add(garde_path, message)
+    }
+  }
+  {
+    let garde_value = garde_self.phone
+    let garde_path = garde_path.field("phone")
+    if @garde.phone_number(garde_value) is Some(message) {
+      garde_report.add(garde_path, message)
+    }
+  }
+  let garde_value = garde_self.card
+  let garde_path = garde_path.field("card")
+  if @garde.credit_card(garde_value) is Some(message) {
+    garde_report.add(garde_path, message)
+  }
+}
+```
+
+| Rule | Accepted input and limits |
+| --- | --- |
+| `email` | ASCII [HTML email address syntax](https://html.spec.whatwg.org/multipage/forms.html#valid-e-mail-address) or a bracketed IP domain, with Garde's limits of 64 bytes before `@` and 255 after it. |
+| `url` | An absolute URL, including schemes such as `mailto:` and `file:`. Uses [MoonURL](https://mooncakes.io/docs/moonbitstack/moonurl) in WHATWG mode. |
+| `ip`, `ipv4`, `ipv6` | Bare IPv4 or IPv6 text, without a port, brackets, or zone identifier. IPv4 uses four decimal octets. Uses [MoonIP](https://mooncakes.io/docs/moonbitstack/moonip). |
+| `phone_number` | An international number with a country calling code. Uses [dialnumber](https://mooncakes.io/docs/sssssurf/dialnumber) for numbering-plan checks and does not assume a default region. |
+| `credit_card` | ASCII digits without separators. Checks a known issuer prefix, the number length, and the Luhn checksum as in [Garde](https://docs.rs/garde/latest/garde/rules/credit_card/). |
+
+These rules do not contact an external service. A valid email or telephone number is not evidence that the address or number is assigned or reachable.
+
+For Unicode domains, use `#custom.garde(email(international))`. The local part must still be ASCII. The generated check calls `@garde.email(garde_value, international=true)`, which uses MoonURL's IDNA handling when the domain is not already valid.
+
 ### `pattern`
 
 Use `pattern("...")` to check a `String` with a MoonBit regular expression.
+Use `pattern(matcher)` to call a named `String -> Bool` function instead. The generated check reports a violation when `!matcher(garde_value)`.
 The rule searches for a match anywhere in the string. Use `^` and `$` to check the whole string, as below.
 Write regex backslashes as `\\` inside the quoted attribute.
 The generator rejects malformed expressions. For an optional string, the rule runs only on `Some`.
@@ -510,6 +607,73 @@ The generated request collector passes the policy and the item path to each allo
     garde_value.collect_with(garde_context, garde_report, garde_path)
   }
 ```
+
+### `when`, `when_with`, `dive_with(field)`, and `transparent`
+
+Use `when(predicate, rules...)` to apply rules only when `predicate(model)` is true. The predicate receives the entire model so it can read sibling fields. `when_with` also passes the typed context as the second argument.
+Use `dive_with(field)` to pass a sibling field as the type-specific context for a nested value. `dive` without a context also works directly on arrays and string-keyed maps. The generated collector adds the item's index or key to the path.
+Use `transparent` on a record or tuple struct with exactly one validated field. When another model dives into this wrapper, violations keep the wrapper's path without adding its inner field or tuple index.
+
+```mbt nocheck
+///|
+#custom.garde(transparent, field(index="0", length(min="3")))
+struct Tag(String)
+
+///|
+#custom.garde
+struct PublishRequest {
+  #custom.garde(skip)
+  published : Bool
+  #custom.garde(when(is_published, required, dive))
+  tag : Tag?
+}
+
+///|
+fn is_published(value : PublishRequest) -> Bool {
+  value.published
+}
+```
+
+Generated collectors:
+
+```mbt nocheck
+///|
+impl @garde.Validate for Tag with fn collect(
+  garde_self,
+  garde_report,
+  garde_path,
+) {
+  match garde_self {
+    Tag(garde_item0) => {
+      let garde_value = garde_item0
+      let garde_path = garde_path
+      if @garde.length(garde_value, Some(3), None) is Some(message) {
+        garde_report.add(garde_path, message)
+      }
+    }
+  }
+}
+
+///|
+impl @garde.Validate for PublishRequest with fn collect(
+  garde_self,
+  garde_report,
+  garde_path,
+) {
+  let garde_value = garde_self.tag
+  let garde_path = garde_path.field("tag")
+  if is_published(garde_self) {
+    if garde_value is None {
+      garde_report.add(garde_path, "is required")
+    }
+    if garde_value is Some(garde_value) {
+      @garde.Validate::collect(garde_value, garde_report, garde_path)
+    }
+  }
+}
+```
+
+A published request with an absent or short tag reports `tag`, not `tag[0]`. An unpublished request skips these rules. Conditions and context selection do not change decoding.
 
 ## Development
 

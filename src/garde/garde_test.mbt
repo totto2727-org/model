@@ -9,14 +9,15 @@ test "length uses MoonBit string length and counts array elements" {
 }
 
 ///|
-test "ascii and alphanumeric check ASCII character classes" {
+test "ascii and alphanumeric check distinct character classes" {
   assert_eq(@garde.ascii(""), None)
   assert_eq(@garde.ascii("A_~\n"), None)
   assert_true(@garde.ascii("é") is Some(_))
   assert_eq(@garde.alphanumeric(""), None)
   assert_eq(@garde.alphanumeric("Az09"), None)
   assert_true(@garde.alphanumeric("A_9") is Some(_))
-  assert_true(@garde.alphanumeric("é") is Some(_))
+  assert_eq(@garde.alphanumeric("é漢９²"), None)
+  assert_true(@garde.alphanumeric("😀") is Some(_))
 }
 
 ///|

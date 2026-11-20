@@ -9,15 +9,19 @@ pub suberror GenerateError {
 ///|
 priv enum Rule {
   Length(Int32?, Int32?)
-  Range(Int32?, Int32?)
+  Range(String?, String?)
   Required
   Dive
   DiveWith
+  DiveUsing(String)
   Inner(Array[Rule])
   Custom(String)
   CustomWith(String)
   Text(String, String?)
+  EmailInternational
   Matches(String)
+  PatternWith(String)
+  When(String, Bool, Array[Rule])
 }
 
 ///|
@@ -57,11 +61,11 @@ fn options(
 }
 
 ///|
-fn parse_bounds(
+fn length_bounds(
   props : @list.List[@attribute.Prop],
   at : String,
-  kind : String,
 ) -> (Int32?, Int32?) raise GenerateError {
+  let kind = "length"
   let mut min = None
   let mut max = None
   let mut equal = None
@@ -74,7 +78,7 @@ fn parse_bounds(
     let value = @string.parse_int(raw[:], radix=10) catch {
       _ => raise GenerateError("\{at}: \{key} must be a decimal Int")
     }
-    if kind == "length" && value < 0 {
+    if value < 0 {
       fail(at, "length bounds must be non-negative")
     }
     match key {
@@ -96,6 +100,70 @@ fn parse_bounds(
 }
 
 ///|
+fn function_name(id : @attribute.Id) -> String {
+  match id.qual {
+    Some(pkg) => "@\{pkg}.\{id.name}"
+    None => id.name
+  }
+}
+
+///|
+fn range_bounds(
+  props : @list.List[@attribute.Prop],
+  at : String,
+) -> (String?, String?) raise GenerateError {
+  let bounds = Map([])
+  let literals = Map([])
+  for prop in props {
+    guard prop is Labeled("min" | "max" | "equal" as key, expr) else {
+      raise GenerateError("\{at}: range expects min, max, or equal")
+    }
+    if bounds.contains(key) {
+      fail(at, "repeated range bound: \{key}")
+    }
+    let code = match expr {
+      Ident(id) => function_name(id)
+      String(raw) => {
+        let json = @json.parse(raw[:]) catch {
+          _ =>
+            raise GenerateError(
+              "\{at}: \{key} must be a quoted decimal or a constant",
+            )
+        }
+        guard json is Number(n, ..) && !n.is_inf() else {
+          raise GenerateError("\{at}: \{key} must be a finite decimal")
+        }
+        literals[key] = n
+        // MoonBit parses integer literals independently of the JSON parser.
+        raw
+      }
+      _ =>
+        raise GenerateError(
+          "\{at}: \{key} must be a quoted decimal or a constant",
+        )
+    }
+    bounds[key] = code
+  }
+  let min = bounds.get("min")
+  let max = bounds.get("max")
+  match bounds.get("equal") {
+    Some(value) if min is None && max is None => (Some(value), Some(value))
+    Some(_) =>
+      raise GenerateError("\{at}: equal cannot be combined with min or max")
+    None => {
+      if bounds.is_empty() {
+        fail(at, "range requires a bound")
+      }
+      if (literals.get("min"), literals.get("max")) is (Some(a), Some(b)) &&
+        a > b {
+        fail(at, "min cannot exceed max")
+      }
+      (min, max)
+    }
+  }
+}
+
+///|
 fn parse_rules(
   props : @list.List[@attribute.Prop],
   at : String,
@@ -106,18 +174,44 @@ fn parse_rules(
       Expr(Ident({ qual: None, name: "required", })) => Required
       Expr(Ident({ qual: None, name: "dive", })) => Dive
       Expr(Ident({ qual: None, name: "dive_with", })) => DiveWith
+      Expr(
+        Apply(
+          { qual: None, name: "dive_with", },
+          More(Expr(Ident({ qual: None, name, })), tail=Empty),
+        ),
+      ) => DiveUsing(name)
       Expr(Apply({ qual: None, name: "length", }, bounds)) => {
-        let (min, max) = parse_bounds(bounds, at, "length")
+        let (min, max) = length_bounds(bounds, at)
         Length(min, max)
       }
       Expr(Apply({ qual: None, name: "range", }, bounds)) => {
-        let (min, max) = parse_bounds(bounds, at, "range")
+        let (min, max) = range_bounds(bounds, at)
         Range(min, max)
       }
       Expr(Apply({ qual: None, name: "inner", }, inner)) =>
         Inner(parse_rules(inner, at))
-      Expr(Ident({ qual: None, name: "ascii" | "alphanumeric" as name, })) =>
-        Text(name, None)
+      Expr(
+        Apply(
+          { qual: None, name: "email", },
+          More(Expr(Ident({ qual: None, name: "international", })), tail=Empty),
+        ),
+      ) => EmailInternational
+      Expr(
+        Ident(
+          {
+            qual: None,
+            name: "ascii"
+            | "alphanumeric"
+            | "email"
+            | "url"
+            | "ip"
+            | "ipv4"
+            | "ipv6"
+            | "credit_card"
+            | "phone_number" as name,
+          },
+        ),
+      ) => Text(name, None)
       Expr(
         Apply(
           {
@@ -146,8 +240,22 @@ fn parse_rules(
         }
         Text(name, Some("\"\{value.escape(quote=false)}\""))
       }
+      Expr(
+        Apply(
+          { qual: None, name: "pattern", },
+          More(Expr(Ident(id)), tail=Empty),
+        ),
+      ) => PatternWith(function_name(id))
       Expr(Apply({ qual: None, name: "pattern", }, _)) =>
-        fail_rule(at, "pattern expects one quoted regular expression")
+        fail_rule(
+          at, "pattern expects one quoted regular expression or matcher function",
+        )
+      Expr(
+        Apply(
+          { qual: None, name: "when" | "when_with" as kind, },
+          More(Expr(Ident(id)), tail=body),
+        ),
+      ) => When(function_name(id), kind == "when_with", parse_rules(body, at))
       Expr(
         Apply(
           { qual: None, name: "matches", },
@@ -159,9 +267,14 @@ fn parse_rules(
       Expr(
         Apply(
           { qual: None, name: "custom" | "custom_with" as kind, },
-          More(Expr(Ident({ qual: None, name, })), tail=Empty),
+          More(Expr(Ident(id)), tail=Empty),
         ),
-      ) => if kind == "custom" { Custom(name) } else { CustomWith(name) }
+      ) =>
+        if kind == "custom" {
+          Custom(function_name(id))
+        } else {
+          CustomWith(function_name(id))
+        }
       _ => fail_rule(at, "unknown or invalid garde rule")
     }
     rules.push(rule)
@@ -195,6 +308,14 @@ fn bound_expr(value : Int32?) -> String {
   match value {
     None => "None"
     Some(n) => "Some(\{n})"
+  }
+}
+
+///|
+fn range_bound_expr(value : String?) -> String {
+  match value {
+    None => "None"
+    Some(code) => "Some(\{code})"
   }
 }
 
@@ -237,6 +358,7 @@ fn emit_rules(
   at : String,
   emitter : Emitter,
   record~ : (String, @list.List[@syntax.FieldDecl])? = None,
+  inner~ : Bool = false,
 ) -> Unit raise GenerateError {
   let p = emitter.prefix
   for rule in rules {
@@ -247,7 +369,18 @@ fn emit_rules(
       out.write_string(
         "if \{p}value is None { \{p}report.add(\{p}path, \"is required\") }\n",
       )
+    } else if rule is When(predicate, uses_context, body) {
+      if uses_context && emitter.context is None {
+        fail(at, "when_with requires context on the type")
+      }
+      let args = if uses_context { "\{p}self, \{p}context" } else { "\{p}self" }
+      out.write_string("if \{predicate}(\{args}) {\n")
+      emit_rules(out, ty, body, at, emitter, record~, inner~)
+      out.write_string("}\n")
     } else if rule is Matches(other) {
+      if inner {
+        fail(at, "matches is only supported directly on record fields")
+      }
       guard record is Some((field, fields)) else {
         raise GenerateError(
           "\{at}: matches is only supported directly on record fields",
@@ -272,7 +405,7 @@ fn emit_rules(
         "if \{p}value != \{p}self.\{other} { \{p}report.add(\{p}path, \"must match \{other}\") }\n",
       )
     } else {
-      emit_rule(out, ty, rule, at, emitter)
+      emit_rule(out, ty, rule, at, emitter, record~)
     }
   }
 }
@@ -284,11 +417,12 @@ fn emit_rule(
   rule : Rule,
   at : String,
   emitter : Emitter,
+  record~ : (String, @list.List[@syntax.FieldDecl])?,
 ) -> Unit raise GenerateError {
   let p = emitter.prefix
   if option_value(ty) is Some(inner) {
     out.write_string("if \{p}value is Some(\{p}value) {\n")
-    emit_rule(out, inner, rule, at, emitter)
+    emit_rule(out, inner, rule, at, emitter, record~)
     out.write_string("}\n")
     return
   }
@@ -297,8 +431,26 @@ fn emit_rule(
       require_bound(emitter, ty, "Length")
       "@garde.length(\{p}value, \{bound_expr(min)}, \{bound_expr(max)})"
     }
-    Range(min, max) =>
-      "@garde.range(\{p}value, \{bound_expr(min)}, \{bound_expr(max)})"
+    Range(min, max) => {
+      if ty is Name(constr_id={ id: Ident(name="Int" | "Int32"), .. }, ..) {
+        for bound in [min, max] {
+          if bound is Some(text) && text is ['-' | '0'..<='9', ..] {
+            ignore(@string.parse_int(text[:], radix=10)) catch {
+              _ => fail(at, "range bound must be a decimal Int")
+            }
+          }
+        }
+      }
+      require_bound(emitter, ty, "Compare")
+      require_bound(emitter, ty, "Show")
+      "@garde.range(\{p}value, \{range_bound_expr(min)}, \{range_bound_expr(max)})"
+    }
+    PatternWith(function) => {
+      out.write_string(
+        "if !\{function}(\{p}value) { \{p}report.add(\{p}path, \"does not match the pattern\") }\n",
+      )
+      return
+    }
     Custom(function) => "\{function}(\{p}value)"
     CustomWith(function) => {
       guard emitter.context is Some(_) else {
@@ -311,6 +463,7 @@ fn emit_rule(
         Some(literal) => "@garde.\{rule}(\{p}value, \{literal})"
         None => "@garde.\{rule}(\{p}value)"
       }
+    EmailInternational => "@garde.email(\{p}value, international=true)"
     Dive => {
       require_bound(emitter, ty, "Validate", nested=true)
       out.write_string(
@@ -324,6 +477,18 @@ fn emit_rule(
       }
       out.write_string(
         "\{p}value.collect_with(\{p}context, \{p}report, \{p}path)\n",
+      )
+      return
+    }
+    DiveUsing(other) => {
+      guard record is Some((_, fields)) &&
+        fields.any(field => field.name.label == other) else {
+        raise GenerateError(
+          "\{at}: dive_with expects the name of a sibling record field",
+        )
+      }
+      out.write_string(
+        "\{p}value.collect_with(\{p}self.\{other}, \{p}report, \{p}path)\n",
       )
       return
     }
@@ -344,11 +509,12 @@ fn emit_rule(
       out.write_string(
         "for \{p}index, \{p}value in \{p}value {\nlet \{p}path = \{p}path.index(\{p}index)\n",
       )
-      emit_rules(out, item, rules, at, emitter)
+      emit_rules(out, item, rules, at, emitter, record~, inner=true)
       out.write_string("}\n")
       return
     }
-    Required | Matches(_) => abort("rule is emitted before unwrapping Option")
+    Required | Matches(_) | When(_, _, _) =>
+      abort("rule is emitted before unwrapping Option")
   }
   out.write_string(
     "if \{call} is Some(message) { \{p}report.add(\{p}path, message) }\n",

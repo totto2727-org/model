@@ -142,3 +142,57 @@ pub(all) struct Same[T] {
   #custom.garde(skip)
   original : T
 }
+
+///|
+#custom.serde
+#custom.garde
+pub(all) struct ContactDetails {
+  #custom.garde(email)
+  email : String
+  #custom.garde(url)
+  website : String
+  #custom.garde(inner(ip))
+  addresses : Array[String]
+  #custom.garde(ipv4)
+  v4 : String?
+  #custom.garde(ipv6)
+  v6 : String?
+  #custom.garde(credit_card)
+  card : String?
+  #custom.garde(phone_number)
+  phone : String?
+}
+
+///|
+const MINIMUM_WIDE : Int64 = 9007199254740993L
+
+///|
+#custom.garde(transparent, field(index="0", pattern(is_uppercase_code)))
+pub(all) struct ProductCode(String)
+
+///|
+fn is_uppercase_code(value : String) -> Bool {
+  value.has_prefix("SKU-")
+}
+
+///|
+#custom.garde
+pub(all) struct OrderChecks {
+  #custom.garde(skip)
+  strict : Bool
+  #custom.garde(when(is_strict, required, dive))
+  product : ProductCode?
+  #custom.garde(range(min=MINIMUM_WIDE))
+  quantity : Int64
+  #custom.garde(range(min="0.5", max="2.5"))
+  multiplier : Double
+  #custom.garde(skip)
+  policy : Policy
+  #custom.garde(inner(dive_with(policy)))
+  allocations : Array[Allocation]
+}
+
+///|
+fn is_strict(value : OrderChecks) -> Bool {
+  value.strict
+}
