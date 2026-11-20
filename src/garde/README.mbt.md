@@ -1,19 +1,14 @@
 # Garde attributes
 
 Use `#custom.garde` to generate validators for MoonBit values.
-Generate the code with `serde-gen --package DIR`, where `DIR` contains the annotated models and imports `totto2727/serde/garde`.
-The generator writes validators and any JSON codecs to `serde.generated.mbt` in the same run.
+Run validation explicitly on decoded or manually constructed values.
 
-Validation does not run during JSON decoding.
-After decoding with Serde, call `@garde.validate(value)` or, for a model with a validation context, `value.validate_with(context)`.
-You can also validate values that you construct directly.
-The report uses MoonBit field names, not JSON keys set by Serde.
-Call `report.violations()` to read the individual violations and `issue.path.segments()` to read their typed `Field` and `Index` segments.
-This library follows Rust garde's explicit validation model, but does not implement the full Rust rule set.
+## Usage
 
-## Validate after decoding
+### Validate after decoding
 
-Add both attributes when a type needs a JSON codec and a validator:
+After [setup](#setup), put this model in `src/models/signup.mbt`.
+Add both attributes when a type needs a JSON codec and a validator.
 
 ```mbt nocheck
 ///|
@@ -30,26 +25,14 @@ pub(all) struct Signup {
 }
 ```
 
-Import `moonbitlang/core/json`, `totto2727/serde`, and `totto2727/serde/garde` in the model package.
 From the module root, run:
 
 ```sh
 serde-gen --package src/models && moon check
 ```
 
-The generated `ToJson` and `FromJson` implementations handle JSON.
-The generated `Validate` implementation checks field values.
-For example, it checks `email` as follows:
-
-```mbt nocheck
-    let garde_value = garde_self.email
-    let garde_path = garde_path.field("email")
-    if @garde.length(garde_value, Some(1), None) is Some(message) {
-      garde_report.add(garde_path, message)
-    }
-```
-
-Call validation after decoding:
+The command writes `src/models/serde.generated.mbt`.
+Put this function in `src/models/signup_check.mbt` to decode the input and then validate it:
 
 ```mbt nocheck
 ///|
@@ -59,10 +42,79 @@ fn check_signup(input : Json) -> Result[Unit, @garde.Report] raise {
 }
 ```
 
-For `{ "displayName": "x", "email": "", "roles": [""] }`, decoding succeeds, then validation reports `name`, `email`, and `roles[0]`.
+Decoding succeeds for this input:
+
+```json
+{
+  "displayName": "x",
+  "email": "",
+  "roles": [""]
+}
+```
+
+Validation then reports `name`, `email`, and `roles[0]`.
 A missing `email` fails during decoding because its type is `String`.
 
-## Attribute reference
+### Complete generated validator
+
+This is the complete `@garde.Validate` implementation for `Signup`.
+For the JSON codec, see [Serde attributes](https://mooncakes.io/docs/totto2727/serde/serde-codegen).
+
+```mbt nocheck
+///|
+pub impl @garde.Validate for Signup with fn collect(
+  garde_self,
+  garde_report,
+  garde_path,
+) {
+  {
+    let garde_value = garde_self.name
+    let garde_path = garde_path.field("name")
+    if @garde.length(garde_value, Some(3), None) is Some(message) {
+      garde_report.add(garde_path, message)
+    }
+  }
+  {
+    let garde_value = garde_self.email
+    let garde_path = garde_path.field("email")
+    if @garde.length(garde_value, Some(1), None) is Some(message) {
+      garde_report.add(garde_path, message)
+    }
+  }
+  let garde_value = garde_self.roles
+  let garde_path = garde_path.field("roles")
+  for garde_index, garde_value in garde_value {
+    let garde_path = garde_path.index(garde_index)
+    if @garde.length(garde_value, Some(1), None) is Some(message) {
+      garde_report.add(garde_path, message)
+    }
+  }
+}
+```
+
+## Key features
+
+- Validate decoded values separately from JSON decoding.
+- Collect multiple violations with field and index paths.
+- Validate nested values and use custom rules with a typed context.
+
+## Prerequisites
+
+See the [Serde prerequisites](https://github.com/totto2727-org/serde#prerequisites) for the shared Moon toolchain and generator requirements.
+
+## Setup
+
+Follow the [Serde setup](https://github.com/totto2727-org/serde#setup) and select a release that includes Garde.
+Import `totto2727/serde/garde` in the model package.
+For the JSON example above, also import `moonbitlang/core/json` and `totto2727/serde`.
+
+## API
+
+Call `@garde.validate(value)` for a model that implements `Validate`.
+For a model with a validation context, call `value.validate_with(context)` instead.
+Use `report.violations()` to read violations and `issue.path.segments()` to read their typed `Field` and `Index` segments.
+The report uses MoonBit field names, not JSON keys set by Serde.
+Garde follows the explicit validation model of [Rust garde](https://docs.rs/garde/latest/garde/), but does not implement all its rules.
 
 Each example shows an annotated model, the generated MoonBit code or the relevant excerpt, and behavior that is not visible from the code alone.
 The examples use the standard MoonBit formatting.
@@ -404,3 +456,11 @@ The generated request collector passes the policy and the item path to each allo
     garde_value.collect_with(garde_context, garde_report, garde_path)
   }
 ```
+
+## Development
+
+For repository maintenance instructions, see [AGENTS.md](https://github.com/totto2727-org/serde/blob/main/AGENTS.md).
+
+## License
+
+[MIT](https://github.com/totto2727-org/serde/blob/main/LICENSE)

@@ -5,8 +5,8 @@ It generates JSON codecs and validators without decoding or validating values.
 
 ## Usage
 
-After [setup](#setup), run this command from the root of your MoonBit module.
-This example uses `src/models` as the package with your annotated types.
+After [setup](#setup), put the annotated types in the `src/models` package.
+From the module root, run:
 
 ```sh
 serde-gen --package src/models && moon check
@@ -56,6 +56,8 @@ Use the [Serde overlay example](https://github.com/totto2727-org/serde#nix-flake
 ## API
 
 For annotated models and generated code, see [Serde attributes](https://mooncakes.io/docs/totto2727/serde/serde-codegen) and [Garde attributes](https://mooncakes.io/docs/totto2727/serde/garde).
+
+### Command reference
 
 ```console
 $ serde-gen --help

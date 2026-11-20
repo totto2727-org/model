@@ -1,16 +1,44 @@
 # Serde attributes
 
 Use `#custom.serde` to generate `ToJson` and `@json.FromJson` implementations.
+These traits control how a MoonBit type reads and writes JSON.
+
+## Usage
+
+After [setup](#setup), put the [`Profile` record](#record-options) in `src/models/profile.mbt`.
+From the module root, run:
+
+```sh
+serde-gen --package src/models && moon check
+```
+
+The command writes `src/models/serde.generated.mbt`.
+See the [JSON input and output](#json-input-and-output) and the [complete generated codec](#complete-generated-codec) for `Profile`.
+
+## Key features
+
+- Generate JSON codecs for records, newtypes, tuple structs, and enums.
+- Set JSON field names, read aliases, and nested object paths.
+- Choose an enum representation or generate only one codec direction.
+
+## Prerequisites
+
+See the [Serde prerequisites](https://github.com/totto2727-org/serde#prerequisites) for the shared Moon toolchain and generator requirements.
+
+## Setup
+
+Follow the [Serde setup](https://github.com/totto2727-org/serde#setup) and import `moonbitlang/core/json` and `totto2727/serde` in the model package.
+
+## API
+
 Do not derive the same traits on an annotated type.
-Add the model to a package that imports `moonbitlang/core/json` and `totto2727/serde`, then run `serde-gen --package DIR` before Moon.
-The generator discovers models in that directory and writes `serde.generated.mbt` with both JSON codecs and any Garde validators.
-Serde supports only JSON. It does not support custom codec hooks or flattening.
+Serde supports only JSON and does not support custom codec hooks or flattening.
 
 Each section shows a minimal annotated model, the generated MoonBit code or the relevant excerpt, and behavior that is not visible from the code alone.
 The examples use the standard MoonBit formatting.
 Variable names such as `f0` can change when fields move.
 
-## `#custom.serde`: newtypes and tuple structs
+### `#custom.serde`: newtypes and tuple structs
 
 A newtype reads and writes its inner value. A tuple struct uses a fixed-length JSON array in declaration order.
 An optional tuple element still needs a slot and writes `null` for `None`.
@@ -57,7 +85,7 @@ pub impl @json.FromJson for Point with fn from_json(value, path) {
 }
 ```
 
-## `decode_only`: generate only a decoder
+### `decode_only`: generate only a decoder
 
 Use `decode_only` for a model that only reads JSON. Its fields do not need to implement `ToJson`.
 
@@ -77,7 +105,7 @@ pub impl @json.FromJson for InputId with fn from_json(value, path) {
 }
 ```
 
-## `encode_only`: generate only an encoder
+### `encode_only`: generate only an encoder
 
 ```mbt nocheck
 ///|
@@ -99,7 +127,7 @@ pub impl ToJson for OutputId with fn to_json(self) {
 Use this for a model that only writes JSON. Its fields do not need `@json.FromJson`.
 Do not combine `encode_only` and `decode_only`. With neither, Serde generates both traits.
 
-## Record options
+### Record options
 
 This record shows how the options in the sections below work together.
 
@@ -121,7 +149,7 @@ struct Profile {
 }
 ```
 
-### JSON input and output
+#### JSON input and output
 
 Decode this JSON as `Profile`:
 
@@ -147,7 +175,7 @@ Encode the resulting `Profile` to get this JSON:
 The decoder accepts `mail` as an alias and fills missing `count` with `0`.
 The encoder writes the canonical key `email`, always omits `cache`, and omits `locale` when it is `None`.
 
-### Complete generated codec
+#### Complete generated codec
 
 These are the complete `ToJson` and `@json.FromJson` implementations for `Profile` in the generated file.
 
@@ -223,7 +251,7 @@ pub impl @json.FromJson for Profile with fn from_json(value, path) {
 }
 ```
 
-### `rename_all`: change field or variant names
+#### `rename_all`: change field or variant names
 
 On a record, `rename_all="camelCase"` changes `display_name` to `displayName` in both directions. On an enum, it changes variant tags. An explicit `rename` or field `path` takes precedence.
 
@@ -245,7 +273,7 @@ let f0 : String = match @serde.field(obj, "displayName", [], path) {
 
 Accepted values: `lowercase`, `UPPERCASE`, `PascalCase`, `camelCase`, `snake_case`, `SCREAMING_SNAKE_CASE`, `kebab-case`, `SCREAMING-KEBAB-CASE`.
 
-### `rename` and `aliases`: choose write and read names
+#### `rename` and `aliases`: choose write and read names
 
 `rename="email"` sets the name in both directions. `aliases=["mail"]` adds a read-only name. The decoder rejects input that contains both names.
 
@@ -263,7 +291,7 @@ let f1 : String = match @serde.field(obj, "email", ["mail"], path) {
 }
 ```
 
-### `path`: read and write a nested key
+#### `path`: read and write a nested key
 
 `path=["meta", "status"]` uses the literal object keys `meta` and `status`, not array indices.
 It requires at least one key. Multiple fields can share a parent object.
@@ -286,7 +314,7 @@ let f2 : String = match @serde.read_path(obj, ["meta", "status"], path) {
 }
 ```
 
-### `default`: fill a missing field
+#### `default`: fill a missing field
 
 `default` calls `Default::default()` when a key is missing. JSON `null` is still passed to the field decoder.
 
@@ -300,7 +328,7 @@ let f3 : Int32 = match @serde.field(obj, "count", [], path) {
 }
 ```
 
-### `skip`: exclude a field from the codec
+#### `skip`: exclude a field from the codec
 
 `skip` generates no read or write for `cache`. The decoder restores its default. For an optional field, it restores `None`.
 
@@ -311,7 +339,7 @@ Generated decoder excerpt:
 let f4 : Int32 = Default::default()
 ```
 
-### `skip_serializing_if`: omit an empty optional field
+#### `skip_serializing_if`: omit an empty optional field
 
 The supported predicate is `skip_serializing_if="Option::is_none"`. It omits `locale` when it is `None`. Without this attribute, the encoder writes `null`. In both cases, a missing key or JSON `null` decodes as `None`.
 For a nested `Option`, `None` and `Some(None)` both encode as `null` when written, and `null` decodes back as `None`.
@@ -331,7 +359,7 @@ Generated encoder excerpt:
   }
 ```
 
-### `deny_unknown_fields`: reject unrecognized keys
+#### `deny_unknown_fields`: reject unrecognized keys
 
 The decoder accepts canonical names, read aliases, and the declared object paths. A skipped field name is accepted but its value is ignored. When a record has nested paths, the check also applies to the parent objects on those paths.
 
@@ -353,11 +381,11 @@ Generated decoder excerpt:
   )
 ```
 
-## Enum options
+### Enum options
 
 A single positional argument writes its value. Multiple positional arguments write a JSON array. Named arguments write a JSON object.
 
-### External tag and variant `rename`
+#### External tag and variant `rename`
 
 With no representation option, a unit variant writes its tag as a JSON string. A payload variant writes an object with the variant tag as its key. Here `Text("hello")` writes `{ "message": "hello" }`.
 
@@ -386,7 +414,7 @@ pub impl ToJson for External with fn to_json(self) {
 }
 ```
 
-### `tag`: put the tag in the payload object
+#### `tag`: put the tag in the payload object
 
 `tag="type"` adds a tag to the object. A payload must use labeled constructor arguments unless the enum is decode-only. Here `NewMessage(text="hello")` writes `{ "type": "new_message", "text": "hello" }`.
 
@@ -435,7 +463,7 @@ Generated decoder arm:
     "Read" => Read(@json.from_json(value, path~))
 ```
 
-### `content`: put the payload next to the tag
+#### `content`: put the payload next to the tag
 
 Combine `tag="type"` with `content="data"` to put the payload under a separate key. `Text("hello")` writes `{ "type": "Text", "data": "hello" }`. `Idle` has no `data` key.
 
@@ -459,7 +487,7 @@ Generated encoder arm:
     }
 ```
 
-### `untagged`: use only the payload
+#### `untagged`: use only the payload
 
 `untagged` writes the payload without an enum tag. The decoder tries the variants in declaration order and returns the first match. Here `Text("hello")` writes `"hello"` and `Count(5)` writes `5`.
 A unit variant writes `null`.
@@ -487,7 +515,7 @@ pub impl @json.FromJson for Untagged with fn from_json(value, path) {
 
 Use a tagged representation if more than one variant can decode the same JSON value.
 
-## Generic models
+### Generic models
 
 The generator adds `ToJson` and `@json.FromJson` bounds for the necessary type parameters in each direction. A `default` or `skip` rule can also require `Default`.
 A skipped field does not require a JSON trait.
@@ -518,8 +546,16 @@ pub impl[T : @json.FromJson] @json.FromJson for Box[T] with fn from_json(
 }
 ```
 
-## Decode errors
+### Decode errors
 
 `@json.JsonDecodeError((path, message))` contains a JSON Pointer and a reason.
 If the example path `["meta", "status"]` is missing because `meta` is absent, the decoder reports `/meta`, not `/meta/status`.
 If no untagged variant matches, the message includes the path and reason for each variant.
+
+## Development
+
+For repository maintenance instructions, see [AGENTS.md](https://github.com/totto2727-org/serde/blob/main/AGENTS.md).
+
+## License
+
+[MIT](https://github.com/totto2727-org/serde/blob/main/LICENSE)
