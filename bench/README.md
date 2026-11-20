@@ -1,4 +1,4 @@
-# JSON decoding benchmark
+# JSON codec benchmarks
 
 Compare four ways to decode the same nested request in a native release build.
 
@@ -8,6 +8,9 @@ Compare four ways to decode the same nested request in a native release build.
 | `lens-per-call` | Build the 12 typed Lens paths and read them on each call. |
 | `lens-prebuilt` | Reuse the same 12 typed Lens paths, built before timing. |
 | `serde` | Call `@json.from_json` with the implementation from `serde-gen`. |
+
+For encoding, compare a hand-written JSON object with the generated `ToJson` implementation for the same request.
+Lens is measured on decoding only. Its setters update an existing document, which is a different operation from encoding a typed record into a new one.
 
 ## Run the comparison
 
@@ -34,8 +37,10 @@ The tests check the complete typed output and rejection of invalid required data
 
 - **JSON text: parse and decode**: Parse the same JSON string on each call, then decode the result.
 - **Parsed JSON: decode only**: Decode the same `Json`, parsed before timing.
+- **ToJson: encode to JSON value**: Encode the same typed `Request` into a fresh `Json`.
+- **ToJson: encode and stringify**: Encode that request and render the resulting `Json` to text.
 
 The benchmarks use MoonBit's standard [`@bench.T`](https://mooncakes.io/docs/moonbitlang/core/bench) and pass each timed result to `b.keep` so the compiler cannot discard the result.
-A decoding error stops the run. Only valid input contributes to the timing results.
+The encoding test checks that both encoders produce the same `Json` and that it decodes to the original record. A decoding error stops the run.
 `moon bench` controls sampling and prints the statistics for each combination.
-These results cover a single fixture and do not measure encoding, application-level validation, or concurrent throughput.
+These results cover a single fixture and do not measure application-level validation or concurrent throughput.
