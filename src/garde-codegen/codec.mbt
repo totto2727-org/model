@@ -16,6 +16,12 @@ fn field_conversion(
         Some({ ty: "Url", parser: "parse_url", printer: "encode", })
       Text("ip" | "ipv4" | "ipv6", None) =>
         Some({ ty: "Addr", parser: "parse_ip", printer: "to_string", })
+      Text("phone_number", None) =>
+        Some({
+          ty: "PhoneNumber",
+          parser: "parse_phone_number",
+          printer: "to_string",
+        })
       _ => None
     }
   })
@@ -24,7 +30,7 @@ fn field_conversion(
     [conversion] => Some(conversion)
     _ =>
       raise GenerateError(
-        "\{at}: garde codec supports one URL or IP format per field",
+        "\{at}: garde codec supports one URL, IP, or phone number format per field",
       )
   }
 }

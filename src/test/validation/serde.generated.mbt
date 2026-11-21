@@ -436,6 +436,13 @@ pub impl[T : ToJson] ToJson for Endpoint[T] with fn to_json(self) {
       Some(option_1) => ToJson::to_json(option_1)
     },
   )
+  obj.set(
+    "phone",
+    match self.phone {
+      None => Json::null()
+      Some(option_1) => ToJson::to_json(option_1)
+    },
+  )
   obj.set("name", ToJson::to_json(self.name))
   obj.set("metadata", ToJson::to_json(self.metadata))
   Json::object(obj)
@@ -461,16 +468,24 @@ pub impl[T : @json.FromJson] @json.FromJson for Endpoint[T] with fn from_json(
       }
     None => None
   }
-  let f2 : String = match obj.get("name") {
+  let f2 : String? = match obj.get("phone") {
+    Some(value) =>
+      match value {
+        Null => None
+        option_1 => Some(@json.from_json(option_1, path=path.add_key("phone")))
+      }
+    None => None
+  }
+  let f3 : String = match obj.get("name") {
     Some(String(value)) => value
     Some(value) => @json.from_json(value, path=path.add_key("name"))
     None => @serde.missing_field(path.add_key("name"), "name")
   }
-  let f3 : T = match obj.get("metadata") {
+  let f4 : T = match obj.get("metadata") {
     Some(value) => @json.from_json(value, path=path.add_key("metadata"))
     None => @serde.missing_field(path.add_key("metadata"), "metadata")
   }
-  { url: f0, allowed_ip: f1, name: f2, metadata: f3, }
+  { url: f0, allowed_ip: f1, phone: f2, name: f3, metadata: f4, }
 }
 
 ///|
@@ -930,6 +945,15 @@ pub impl[T] @garde.Validate for Endpoint[T] with fn collect(
       }
     }
   }
+  {
+    let garde_value = garde_self.phone
+    let garde_path = garde_path.field("phone")
+    if garde_value is Some(garde_value) {
+      if @garde.phone_number(garde_value) is Some(message) {
+        garde_report.add(garde_path, message)
+      }
+    }
+  }
   let garde_value = garde_self.name
   let garde_path = garde_path.field("name")
   if @garde.length(garde_value, Some(1), None) is Some(message) {
@@ -942,6 +966,7 @@ pub impl[T] @garde.Validate for Endpoint[T] with fn collect(
 pub(all) struct EndpointDecoded[T] {
   url : @garde.Url
   allowed_ip : @garde.Addr?
+  phone : @garde.PhoneNumber?
   name : String
   metadata : T
 }
@@ -974,9 +999,23 @@ pub fn[T] Endpoint::codec() -> @garde.Codec[Endpoint[T], EndpointDecoded[T]] {
           Some(garde_parsed)
         }
       }
+      let garde_field2 = match garde_value.phone {
+        None => None
+        Some(garde_item) => {
+          guard @garde.parse_phone_number(garde_item) is Some(garde_parsed) else {
+            return Err(
+              @garde.conversion_failure(
+                "phone", "could not convert validated value",
+              ),
+            )
+          }
+          Some(garde_parsed)
+        }
+      }
       Ok(EndpointDecoded::{
         url: garde_field0,
         allowed_ip: garde_field1,
+        phone: garde_field2,
         name: garde_value.name,
         metadata: garde_value.metadata,
       })
@@ -987,6 +1026,7 @@ pub fn[T] Endpoint::codec() -> @garde.Codec[Endpoint[T], EndpointDecoded[T]] {
         allowed_ip: garde_value.allowed_ip.map(garde_item => {
           garde_item.to_string()
         }),
+        phone: garde_value.phone.map(garde_item => garde_item.to_string()),
         name: garde_value.name,
         metadata: garde_value.metadata,
       }

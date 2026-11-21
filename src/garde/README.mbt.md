@@ -154,7 +154,7 @@ pub impl @garde.Decode for Endpoint
 pub impl @garde.Encode for EndpointDecoded
 ```
 
-The generated `Endpoint::codec()` pairs the two field conversions:
+The generated `Endpoint::codec()` pairs the URL conversions:
 
 ```mbt nocheck
 ///|
@@ -184,9 +184,11 @@ Use Serde's `@json.from_json` before `decode` and `ToJson::to_json` after `encod
 
 On a `codec` record, a direct `url` rule converts a `String` to MoonBit Stack's `Url`, re-exported as `@garde.Url`.
 A direct `ip`, `ipv4`, or `ipv6` rule converts a `String` to MoonBit Stack's `Addr`, re-exported as `@garde.Addr`.
+A direct `phone_number` rule converts a `String` to dialnumber's `PhoneNumber`, re-exported as `@garde.PhoneNumber`.
+Encoding uses `PhoneNumber::to_string`, which keeps the country calling code and any extension.
 Optional fields preserve `None` and convert only `Some`.
 Other fields keep their original types, including nested fields validated with `dive` or `inner`.
-The URL and IP formatters can normalize the spelling, so encoding does not guarantee the exact original text.
+These formatters can normalize the spelling, so encoding does not guarantee the exact original text.
 A successful decode parses these fields once to validate them and once to construct their typed values.
 Generated codecs support records without a validation context.
 For other typed conversions, implement `Decode` and `Encode` for your two models and build the pair with `Codec::new`.

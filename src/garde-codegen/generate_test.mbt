@@ -7,8 +7,8 @@ test "reject unsupported garde codec declarations" {
         "#custom.garde(codec, context=C)\nstruct S { value : String }", "does not support contextual validation",
       ),
       (
-        "#custom.garde(codec)\nstruct S {\n  #custom.garde(url, ip)\n  value : String\n}",
-        "supports one URL or IP format per field",
+        "#custom.garde(codec)\nstruct S {\n  #custom.garde(url, phone_number)\n  value : String\n}",
+        "supports one URL, IP, or phone number format per field",
       ),
     ] {
     let result = Ok(@garde_codegen.generate_many([("codec.mbt", source)])) catch {

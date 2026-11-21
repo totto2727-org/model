@@ -7,6 +7,8 @@ pub(all) struct Endpoint[T] {
   url : String
   #custom.garde(ipv4)
   allowed_ip : String?
+  #custom.garde(phone_number)
+  phone : String?
   #custom.garde(length(min="1"))
   name : String
   #custom.garde(skip)

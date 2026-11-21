@@ -3,6 +3,7 @@ test "Serde and Garde decode and encode the same wire model" {
   let input : Json = {
     "endpointUrl": "https://EXAMPLE.org:443/docs",
     "allowed_ip": "192.0.2.10",
+    "phone": "+81 90-1234-5678 ext. 42",
     "name": "docs",
     "metadata": 42,
   }
@@ -18,6 +19,13 @@ test "Serde and Garde decode and encode the same wire model" {
     fail("IP address was not decoded")
   }
   assert_true(ip.is_v4())
+  guard domain.phone is Some(phone) else {
+    fail("phone number was not decoded")
+  }
+  let phone : @garde.PhoneNumber = phone
+  assert_eq(phone.country_code, 81)
+  assert_eq(phone.national_number, "9012345678")
+  assert_eq(phone.extension, "42")
   assert_eq(domain.metadata, 42)
   guard @garde.encode(domain, codec) is Ok(encoded) else {
     fail("valid domain model was rejected")
@@ -25,6 +33,7 @@ test "Serde and Garde decode and encode the same wire model" {
   let output : Json = {
     "endpointUrl": "https://example.org/docs",
     "allowed_ip": "192.0.2.10",
+    "phone": "+81 9012345678 x42",
     "name": "docs",
     "metadata": 42,
   }
@@ -36,6 +45,7 @@ test "Garde decode validates all wire fields and preserves absent optional value
   let invalid : @validation.Endpoint[Int32] = {
     url: "//example.org",
     allowed_ip: Some("::1"),
+    phone: Some("09012345678"),
     name: "",
     metadata: 1,
   }
@@ -44,22 +54,25 @@ test "Garde decode validates all wire fields and preserves absent optional value
     fail("invalid wire model was accepted")
   }
   assert_eq(report.violations().map(v => Show::to_string(v.path)), [
-    "url", "allowed_ip", "name",
+    "url", "allowed_ip", "phone", "name",
   ])
   let wire = {
     ..invalid,
     url: "https://example.org/",
     allowed_ip: None,
+    phone: None,
     name: "docs",
   }
   guard @garde.decode(wire, codec) is Ok(domain) else {
     fail("missing optional IP was rejected")
   }
   assert_true(domain.allowed_ip is None)
+  assert_true(domain.phone is None)
   guard @garde.encode(domain, codec) is Ok(encoded) else {
-    fail("valid model with missing optional IP was rejected")
+    fail("valid model with missing optional fields was rejected")
   }
   assert_true(encoded.allowed_ip is None)
+  assert_true(encoded.phone is None)
 }
 
 ///|
@@ -70,6 +83,7 @@ test "Garde encode validates the converted wire model" {
   let domain : @validation.EndpointDecoded[Int32] = {
     url,
     allowed_ip: @garde.parse_ip("::1"),
+    phone: Some(@garde.PhoneNumber::new(81, "1")),
     name: "",
     metadata: 1,
   }
@@ -77,6 +91,6 @@ test "Garde encode validates the converted wire model" {
     fail("invalid domain model was accepted")
   }
   assert_eq(report.violations().map(v => Show::to_string(v.path)), [
-    "allowed_ip", "name",
+    "allowed_ip", "phone", "name",
   ])
 }
