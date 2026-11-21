@@ -349,13 +349,6 @@ pub impl ToJson for ContactDetails with fn to_json(self) {
     },
   )
   obj.set(
-    "card",
-    match self.card {
-      None => Json::null()
-      Some(option_1) => ToJson::to_json(option_1)
-    },
-  )
-  obj.set(
     "phone",
     match self.phone {
       None => Json::null()
@@ -398,15 +391,7 @@ pub impl @json.FromJson for ContactDetails with fn from_json(value, path) {
       }
     None => None
   }
-  let f5 : String? = match obj.get("card") {
-    Some(value) =>
-      match value {
-        Null => None
-        option_1 => Some(@json.from_json(option_1, path=path.add_key("card")))
-      }
-    None => None
-  }
-  let f6 : String? = match obj.get("phone") {
+  let f5 : String? = match obj.get("phone") {
     Some(value) =>
       match value {
         Null => None
@@ -414,15 +399,7 @@ pub impl @json.FromJson for ContactDetails with fn from_json(value, path) {
       }
     None => None
   }
-  {
-    email: f0,
-    website: f1,
-    addresses: f2,
-    v4: f3,
-    v6: f4,
-    card: f5,
-    phone: f6,
-  }
+  { email: f0, website: f1, addresses: f2, v4: f3, v6: f4, phone: f5, }
 }
 
 ///|
@@ -848,15 +825,6 @@ pub impl @garde.Validate for ContactDetails with fn collect(
       }
     }
   }
-  {
-    let garde__value = garde__self.card
-    let garde__path = garde__path.field("card")
-    if garde__value is Some(garde__value) {
-      if @garde.credit_card(garde__value) is Some(message) {
-        garde__report.add(garde__path, message)
-      }
-    }
-  }
   let garde__value = garde__self.phone
   let garde__path = garde__path.field("phone")
   if garde__value is Some(garde__value) {
@@ -920,6 +888,85 @@ pub impl @garde.Validate for OrderChecks with fn collect(
   for garde__index, garde__value in garde__value {
     let garde__path = garde__path.index(garde__index)
     garde__value.collect_with(garde__self.policy, garde__report, garde__path)
+  }
+}
+
+///|
+pub impl @garde.Validate for NumericRanges with fn collect(
+  garde__self,
+  garde__report,
+  garde__path,
+) {
+  {
+    let garde__value = garde__self.wide
+    let garde__path = garde__path.field("wide")
+    if @garde.range(
+        garde__value,
+        Some(9007199254740993),
+        Some(9007199254740994),
+      )
+      is Some(message) {
+      garde__report.add(garde__path, message)
+    }
+  }
+  {
+    let garde__value = garde__self.unsigned
+    let garde__path = garde__path.field("unsigned")
+    if @garde.range(
+        garde__value,
+        Some(18446744073709551614),
+        Some(18446744073709551615),
+      )
+      is Some(message) {
+      garde__report.add(garde__path, message)
+    }
+  }
+  {
+    let garde__value = garde__self.huge
+    let garde__path = garde__path.field("huge")
+    if @garde.range(
+        garde__value,
+        Some(1000000000000000000000000000001N),
+        Some(1000000000000000000000000000001N),
+      )
+      is Some(message) {
+      garde__report.add(garde__path, message)
+    }
+  }
+  {
+    let garde__value = garde__self.single
+    let garde__path = garde__path.field("single")
+    if @garde.range(garde__value, Some(1.00000002), Some(1.00000001))
+      is Some(message) {
+      garde__report.add(garde__path, message)
+    }
+  }
+  {
+    let garde__value = garde__self.double
+    let garde__path = garde__path.field("double")
+    if @garde.range(garde__value, Some(-1.25e-1), Some(2_000.0))
+      is Some(message) {
+      garde__report.add(garde__path, message)
+    }
+  }
+  let garde__value = garde__self.base16
+  let garde__path = garde__path.field("base16")
+  if @garde.range(garde__value, Some(0x10), Some(0x20)) is Some(message) {
+    garde__report.add(garde__path, message)
+  }
+}
+
+///|
+pub impl @garde.Validate for ReversedRange with fn collect(
+  garde__self,
+  garde__report,
+  garde__path,
+) {
+  let garde__value = garde__self.wide
+  let garde__path = garde__path.field("wide")
+  if @garde.range(garde__value, Some(9007199254740993), Some(9007199254740992))
+    is Some(message) {
+    garde__report.add(garde__path, message)
   }
 }
 
