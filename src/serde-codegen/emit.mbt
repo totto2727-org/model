@@ -78,8 +78,39 @@ fn json_call(name : String, args : Array[@syntax.Expr]) -> @syntax.Expr {
 }
 
 ///|
-fn field_local(index : Int32) -> String {
-  "f\{index}"
+fn positional_local(index : Int32, count : Int32) -> String {
+  if count == 1 {
+    "inner"
+  } else {
+    "item_\{index}"
+  }
+}
+
+///|
+fn field_locals(fields : Array[Field]) -> Array[String] {
+  let mut prefix = "field_"
+  // A local binding must not shadow an unqualified codec hook.
+  for field in fields {
+    for
+      hook in [
+        field.default_with,
+        field.serialize_with,
+        field.deserialize_with,
+        field.skip_serializing_if,
+      ] {
+      if hook is Some(Function(None, name)) {
+        while name.has_prefix(prefix) {
+          prefix += "_"
+        }
+      }
+    }
+  }
+  fields.mapi((i, field) => {
+    match field.label {
+      Some(label) => prefix + label
+      None => positional_local(i, fields.length())
+    }
+  })
 }
 
 ///|
@@ -308,15 +339,11 @@ fn decode_fields(
   deny : Bool,
   result : @syntax.Expr,
 ) -> @syntax.Expr {
+  let locals = field_locals(fields)
   let mut body = result
   for i = fields.length() - 1; i >= 0; i = i - 1 {
     let field = fields[i]
-    body = ast_let(
-      ast_bind(field_local(i)),
-      decode_field(field),
-      body,
-      ty=field.ty,
-    )
+    body = ast_let(ast_bind(locals[i]), decode_field(field), body, ty=field.ty)
   }
   if deny {
     body = ast_seq([deny_unknown(fields)], body)
@@ -341,6 +368,7 @@ fn decode_fields(
 ///|
 fn encode_fields(fields : Array[Field], record : Bool) -> Array[@syntax.Expr] {
   let writes = []
+  let locals = if record { [] } else { field_locals(fields) }
   let obj = ast_ident("obj")
   for i, field in fields {
     if field.skip || field.skip_serializing {
@@ -349,7 +377,7 @@ fn encode_fields(fields : Array[Field], record : Bool) -> Array[@syntax.Expr] {
     let value = if record {
       ast_field(ast_ident("self"), field.name)
     } else {
-      ast_ident(field_local(i))
+      ast_ident(locals[i])
     }
     let encoded = match field.serialize_with {
       Some(hook) => call(hook_expr(hook), [value])
@@ -531,8 +559,9 @@ fn emit_record(out : Array[@syntax.Impl], record : RecordDef) -> Unit {
   if record.encode_only {
     return
   }
+  let locals = field_locals(record.fields)
   let result = ast_record(
-    record.fields.mapi((i, field) => (field.name, ast_ident(field_local(i)))),
+    record.fields.mapi((i, field) => (field.name, ast_ident(locals[i]))),
   )
   let body = decode_fields(record.fields, record.deny_unknown_fields, result)
   let bounds = field_quantifiers(record.params, record.fields, decode=true)
@@ -548,24 +577,26 @@ fn named(variant : Variant) -> Bool {
 
 ///|
 fn constructor_expr(variant : Variant) -> @syntax.Expr {
+  let locals = field_locals(variant.fields)
   variant_expr(
     variant.name,
-    variant.fields.mapi((i, field) => (field.label, ast_ident(field_local(i)))),
+    variant.fields.mapi((i, field) => (field.label, ast_ident(locals[i]))),
   )
 }
 
 ///|
 fn constructor_pattern(variant : Variant) -> @syntax.Pattern {
+  let locals = field_locals(variant.fields)
   variant_pat(
     variant.name,
-    variant.fields.mapi((i, field) => (field.label, ast_bind(field_local(i)))),
+    variant.fields.mapi((i, field) => (field.label, ast_bind(locals[i]))),
   )
 }
 
 ///|
 fn encode_positional(depths : Array[Int32]) -> @syntax.Expr {
   let values = depths.mapi((i, depth) => {
-    encode_value(ast_ident(field_local(i)), depth)
+    encode_value(ast_ident(positional_local(i, depths.length())), depth)
   })
   if values is [single] {
     single
@@ -582,7 +613,7 @@ fn decode_positional(
   let value = ast_ident("value")
   let path = ast_ident("path")
   if fields is [(ty, depth)] {
-    ast_let(ast_bind("f0"), decode_value(value, path, depth), result, ty~)
+    ast_let(ast_bind("inner"), decode_value(value, path, depth), result, ty~)
   } else {
     let mut body = result
     for i = fields.length() - 1; i >= 0; i = i - 1 {
@@ -591,7 +622,7 @@ fn decode_positional(
       let item = ast_index(ast_ident("values"), offset)
       let at = dot_call(path, "add_index", [offset])
       body = ast_let(
-        ast_bind(field_local(i)),
+        ast_bind(positional_local(i, fields.length())),
         decode_value(item, at, depth),
         body,
         ty~,
@@ -611,7 +642,9 @@ fn emit_tuple(out : Array[@syntax.Impl], tuple : TupleDef) -> Unit {
   if !tuple.decode_only {
     let pattern = variant_pat(
       tuple.name,
-      fields.mapi((i, _) => (None, ast_bind(field_local(i)))),
+      fields.mapi((i, _) => {
+        (None, ast_bind(positional_local(i, fields.length())))
+      }),
     )
     let payload = encode_positional(fields.map(field => field.1))
     let body = match_expr(ast_ident("self"), [(pattern, payload)])
@@ -625,7 +658,9 @@ fn emit_tuple(out : Array[@syntax.Impl], tuple : TupleDef) -> Unit {
   }
   let result = variant_expr(
     tuple.name,
-    fields.mapi((i, _) => (None, ast_ident(field_local(i)))),
+    fields.mapi((i, _) => {
+      (None, ast_ident(positional_local(i, fields.length())))
+    }),
   )
   out.push(
     decode_impl(

@@ -28,11 +28,11 @@ pub impl ToJson for Record with fn to_json(self) {
 ///|
 pub impl @json.FromJson for Record with fn from_json(value, path) {
   let obj = @serde.object(value, path)
-  let f0 : Int32 = match obj.get("required") {
+  let field_required : Int32 = match obj.get("required") {
     Some(value) => @json.from_json(value, path=path.add_key("required"))
     None => @serde.missing_field(path.add_key("required"), "required")
   }
-  let f1 : String? = match obj.get("optional") {
+  let field_optional : String? = match obj.get("optional") {
     Some(value) =>
       match value {
         Null => None
@@ -41,18 +41,18 @@ pub impl @json.FromJson for Record with fn from_json(value, path) {
       }
     None => None
   }
-  let f2 : Int32 = match obj.get("count") {
+  let field_count : Int32 = match obj.get("count") {
     Some(value) => @json.from_json(value, path=path.add_key("count"))
     None => Default::default()
   }
-  let f3 : String = match
+  let field_name : String = match
     @serde.field(obj, "displayName", ["legacy_name"], path) {
     Some(String(value)) => value
     Some(value) => @json.from_json(value, path=path.add_key("displayName"))
     None => @serde.missing_field(path.add_key("displayName"), "displayName")
   }
-  let f4 : Int32 = Default::default()
-  let f5 : Int32? = match obj.get("omitted") {
+  let field_transient : Int32 = Default::default()
+  let field_omitted : Int32? = match obj.get("omitted") {
     Some(value) =>
       match value {
         Null => None
@@ -62,12 +62,12 @@ pub impl @json.FromJson for Record with fn from_json(value, path) {
     None => None
   }
   {
-    required: f0,
-    optional: f1,
-    count: f2,
-    name: f3,
-    transient: f4,
-    omitted: f5,
+    required: field_required,
+    optional: field_optional,
+    count: field_count,
+    name: field_name,
+    transient: field_transient,
+    omitted: field_omitted,
   }
 }
 
@@ -82,11 +82,11 @@ pub impl ToJson for StrictRecord with fn to_json(self) {
 pub impl @json.FromJson for StrictRecord with fn from_json(value, path) {
   let obj = @serde.object(value, path)
   @serde.deny_unknown(obj, ["value"], path)
-  let f0 : Int32 = match obj.get("value") {
+  let field_value : Int32 = match obj.get("value") {
     Some(value) => @json.from_json(value, path=path.add_key("value"))
     None => @serde.missing_field(path.add_key("value"), "value")
   }
-  { value: f0, }
+  { value: field_value, }
 }
 
 ///|
@@ -100,41 +100,44 @@ pub impl ToJson for CamelRecord with fn to_json(self) {
 ///|
 pub impl @json.FromJson for CamelRecord with fn from_json(value, path) {
   let obj = @serde.object(value, path)
-  let f0 : String = match obj.get("firstName") {
+  let field_first_name : String = match obj.get("firstName") {
     Some(String(value)) => value
     Some(value) => @json.from_json(value, path=path.add_key("firstName"))
     None => @serde.missing_field(path.add_key("firstName"), "firstName")
   }
-  let f1 : String = match obj.get("fixed_name") {
+  let field_last_name : String = match obj.get("fixed_name") {
     Some(String(value)) => value
     Some(value) => @json.from_json(value, path=path.add_key("fixed_name"))
     None => @serde.missing_field(path.add_key("fixed_name"), "fixed_name")
   }
-  { first_name: f0, last_name: f1, }
+  { first_name: field_first_name, last_name: field_last_name, }
 }
 
 ///|
 pub impl ToJson for External with fn to_json(self) {
   match self {
     Idle => Json::string("idle")
-    NewValue(f0) => {
-      let payload = ToJson::to_json(f0)
+    NewValue(inner) => {
+      let payload = ToJson::to_json(inner)
       Json::object({ "new_value": payload })
     }
-    Pair(f0, f1) => {
-      let payload = Json::array([ToJson::to_json(f0), ToJson::to_json(f1)])
+    Pair(item_0, item_1) => {
+      let payload = Json::array([
+        ToJson::to_json(item_0),
+        ToJson::to_json(item_1),
+      ])
       Json::object({ "pair": payload })
     }
-    Named(label=f0, child=f1) => {
+    Named(label=field_label, child=field_child) => {
       let obj : Map[String, Json] = Map([])
-      obj.set("label", ToJson::to_json(f0))
-      obj.set("child", ToJson::to_json(f1))
+      obj.set("label", ToJson::to_json(field_label))
+      obj.set("child", ToJson::to_json(field_child))
       let payload = Json::object(obj)
       Json::object({ "named": payload })
     }
     Special => Json::string("renamed")
-    Maybe(f0) => {
-      let payload = match f0 {
+    Maybe(inner) => {
+      let payload = match inner {
         None => Json::null()
         Some(option_1) => ToJson::to_json(option_1)
       }
@@ -159,8 +162,8 @@ fn serde_decode_External_1(
   value : Json,
   path : @json.JsonPath,
 ) -> External raise @json.JsonDecodeError {
-  let f0 : Int32 = @json.from_json(value, path~)
-  NewValue(f0)
+  let inner : Int32 = @json.from_json(value, path~)
+  NewValue(inner)
 }
 
 ///|
@@ -169,9 +172,9 @@ fn serde_decode_External_2(
   path : @json.JsonPath,
 ) -> External raise @json.JsonDecodeError {
   let values = @serde.tuple(value, 2, path)
-  let f0 : String = @json.from_json(values[0], path=path.add_index(0))
-  let f1 : Int32 = @json.from_json(values[1], path=path.add_index(1))
-  Pair(f0, f1)
+  let item_0 : String = @json.from_json(values[0], path=path.add_index(0))
+  let item_1 : Int32 = @json.from_json(values[1], path=path.add_index(1))
+  Pair(item_0, item_1)
 }
 
 ///|
@@ -180,16 +183,16 @@ fn serde_decode_External_3(
   path : @json.JsonPath,
 ) -> External raise @json.JsonDecodeError {
   let obj = @serde.object(value, path)
-  let f0 : String = match obj.get("label") {
+  let field_label : String = match obj.get("label") {
     Some(String(value)) => value
     Some(value) => @json.from_json(value, path=path.add_key("label"))
     None => @serde.missing_field(path.add_key("label"), "label")
   }
-  let f1 : StrictRecord = match obj.get("child") {
+  let field_child : StrictRecord = match obj.get("child") {
     Some(value) => @json.from_json(value, path=path.add_key("child"))
     None => @serde.missing_field(path.add_key("child"), "child")
   }
-  Named(label=f0, child=f1)
+  Named(label=field_label, child=field_child)
 }
 
 ///|
@@ -208,11 +211,11 @@ fn serde_decode_External_5(
   value : Json,
   path : @json.JsonPath,
 ) -> External raise @json.JsonDecodeError {
-  let f0 : String? = match value {
+  let inner : String? = match value {
     Null => None
     option_1 => Some(@json.from_json(option_1, path~))
   }
-  Maybe(f0)
+  Maybe(inner)
 }
 
 ///|
@@ -255,12 +258,12 @@ pub impl ToJson for Internal with fn to_json(self) {
       obj.set("type", Json::string("idle"))
       Json::object(obj)
     }
-    Named(value=f0, note=f1) => {
+    Named(value=field_value, note=field_note) => {
       let obj : Map[String, Json] = Map([])
-      obj.set("value", ToJson::to_json(f0))
+      obj.set("value", ToJson::to_json(field_value))
       obj.set(
         "note",
-        match f1 {
+        match field_note {
           None => Json::null()
           Some(option_1) => ToJson::to_json(option_1)
         },
@@ -277,11 +280,11 @@ fn serde_decode_Internal_1(
   path : @json.JsonPath,
 ) -> Internal raise @json.JsonDecodeError {
   let obj = @serde.object(value, path)
-  let f0 : Int32 = match obj.get("value") {
+  let field_value : Int32 = match obj.get("value") {
     Some(value) => @json.from_json(value, path=path.add_key("value"))
     None => @serde.missing_field(path.add_key("value"), "value")
   }
-  let f1 : String? = match obj.get("note") {
+  let field_note : String? = match obj.get("note") {
     Some(value) =>
       match value {
         Null => None
@@ -289,7 +292,7 @@ fn serde_decode_Internal_1(
       }
     None => None
   }
-  Named(value=f0, note=f1)
+  Named(value=field_value, note=field_note)
 }
 
 ///|
@@ -310,29 +313,32 @@ pub impl ToJson for Adjacent with fn to_json(self) {
       let tagged : Map[String, Json] = { "type": Json::string("idle") }
       Json::object(tagged)
     }
-    Value(f0) => {
+    Value(inner) => {
       let tagged : Map[String, Json] = { "type": Json::string("value") }
-      let payload = ToJson::to_json(f0)
+      let payload = ToJson::to_json(inner)
       tagged.set("data", payload)
       Json::object(tagged)
     }
-    Pair(f0, f1) => {
+    Pair(item_0, item_1) => {
       let tagged : Map[String, Json] = { "type": Json::string("pair") }
-      let payload = Json::array([ToJson::to_json(f0), ToJson::to_json(f1)])
+      let payload = Json::array([
+        ToJson::to_json(item_0),
+        ToJson::to_json(item_1),
+      ])
       tagged.set("data", payload)
       Json::object(tagged)
     }
-    Named(value=f0) => {
+    Named(value=field_value) => {
       let tagged : Map[String, Json] = { "type": Json::string("named") }
       let obj : Map[String, Json] = Map([])
-      obj.set("value", ToJson::to_json(f0))
+      obj.set("value", ToJson::to_json(field_value))
       let payload = Json::object(obj)
       tagged.set("data", payload)
       Json::object(tagged)
     }
-    Maybe(f0) => {
+    Maybe(inner) => {
       let tagged : Map[String, Json] = { "type": Json::string("maybe") }
-      let payload = match f0 {
+      let payload = match inner {
         None => Json::null()
         Some(option_1) => ToJson::to_json(option_1)
       }
@@ -358,8 +364,8 @@ fn serde_decode_Adjacent_1(
   value : Json,
   path : @json.JsonPath,
 ) -> Adjacent raise @json.JsonDecodeError {
-  let f0 : Int32 = @json.from_json(value, path~)
-  Value(f0)
+  let inner : Int32 = @json.from_json(value, path~)
+  Value(inner)
 }
 
 ///|
@@ -368,9 +374,9 @@ fn serde_decode_Adjacent_2(
   path : @json.JsonPath,
 ) -> Adjacent raise @json.JsonDecodeError {
   let values = @serde.tuple(value, 2, path)
-  let f0 : String = @json.from_json(values[0], path=path.add_index(0))
-  let f1 : Int32 = @json.from_json(values[1], path=path.add_index(1))
-  Pair(f0, f1)
+  let item_0 : String = @json.from_json(values[0], path=path.add_index(0))
+  let item_1 : Int32 = @json.from_json(values[1], path=path.add_index(1))
+  Pair(item_0, item_1)
 }
 
 ///|
@@ -379,11 +385,11 @@ fn serde_decode_Adjacent_3(
   path : @json.JsonPath,
 ) -> Adjacent raise @json.JsonDecodeError {
   let obj = @serde.object(value, path)
-  let f0 : Int32 = match obj.get("value") {
+  let field_value : Int32 = match obj.get("value") {
     Some(value) => @json.from_json(value, path=path.add_key("value"))
     None => @serde.missing_field(path.add_key("value"), "value")
   }
-  Named(value=f0)
+  Named(value=field_value)
 }
 
 ///|
@@ -391,11 +397,11 @@ fn serde_decode_Adjacent_4(
   value : Json,
   path : @json.JsonPath,
 ) -> Adjacent raise @json.JsonDecodeError {
-  let f0 : String? = match value {
+  let inner : String? = match value {
     Null => None
     option_1 => Some(@json.from_json(option_1, path~))
   }
-  Maybe(f0)
+  Maybe(inner)
 }
 
 ///|
@@ -431,17 +437,17 @@ pub impl @json.FromJson for Adjacent with fn from_json(value, path) {
 ///|
 pub impl ToJson for Untagged with fn to_json(self) {
   match self {
-    Integer(f0) => {
-      let payload = ToJson::to_json(f0)
+    Integer(inner) => {
+      let payload = ToJson::to_json(inner)
       payload
     }
-    Text(f0) => {
-      let payload = ToJson::to_json(f0)
+    Text(inner) => {
+      let payload = ToJson::to_json(inner)
       payload
     }
-    Named(value=f0) => {
+    Named(value=field_value) => {
       let obj : Map[String, Json] = Map([])
-      obj.set("value", ToJson::to_json(f0))
+      obj.set("value", ToJson::to_json(field_value))
       let payload = Json::object(obj)
       payload
     }
@@ -453,8 +459,8 @@ fn serde_decode_Untagged_0(
   value : Json,
   path : @json.JsonPath,
 ) -> Untagged raise @json.JsonDecodeError {
-  let f0 : Int32 = @json.from_json(value, path~)
-  Integer(f0)
+  let inner : Int32 = @json.from_json(value, path~)
+  Integer(inner)
 }
 
 ///|
@@ -462,8 +468,8 @@ fn serde_decode_Untagged_1(
   value : Json,
   path : @json.JsonPath,
 ) -> Untagged raise @json.JsonDecodeError {
-  let f0 : String = @json.from_json(value, path~)
-  Text(f0)
+  let inner : String = @json.from_json(value, path~)
+  Text(inner)
 }
 
 ///|
@@ -472,11 +478,11 @@ fn serde_decode_Untagged_2(
   path : @json.JsonPath,
 ) -> Untagged raise @json.JsonDecodeError {
   let obj = @serde.object(value, path)
-  let f0 : Int32 = match obj.get("value") {
+  let field_value : Int32 = match obj.get("value") {
     Some(value) => @json.from_json(value, path=path.add_key("value"))
     None => @serde.missing_field(path.add_key("value"), "value")
   }
-  Named(value=f0)
+  Named(value=field_value)
 }
 
 ///|
@@ -516,11 +522,11 @@ pub impl ToJson for Envelope with fn to_json(self) {
 ///|
 pub impl @json.FromJson for Envelope with fn from_json(value, path) {
   let obj = @serde.object(value, path)
-  let f0 : Array[StrictRecord] = match obj.get("records") {
+  let field_records : Array[StrictRecord] = match obj.get("records") {
     Some(value) => @json.from_json(value, path=path.add_key("records"))
     None => @serde.missing_field(path.add_key("records"), "records")
   }
-  let f1 : External? = match obj.get("event") {
+  let field_event : External? = match obj.get("event") {
     Some(value) =>
       match value {
         Null => None
@@ -528,7 +534,7 @@ pub impl @json.FromJson for Envelope with fn from_json(value, path) {
       }
     None => None
   }
-  let f2 : String?? = match obj.get("nested") {
+  let field_nested : String?? = match obj.get("nested") {
     Some(value) =>
       match value {
         Null => None
@@ -543,17 +549,17 @@ pub impl @json.FromJson for Envelope with fn from_json(value, path) {
       }
     None => None
   }
-  { records: f0, event: f1, nested: f2, }
+  { records: field_records, event: field_event, nested: field_nested, }
 }
 
 ///|
 pub impl @json.FromJson for DecodeOnlyRecord with fn from_json(value, path) {
   let obj = @serde.object(value, path)
-  let f0 : Int32 = match obj.get("count") {
+  let field_count : Int32 = match obj.get("count") {
     Some(value) => @json.from_json(value, path=path.add_key("count"))
     None => @serde.missing_field(path.add_key("count"), "count")
   }
-  { count: f0, }
+  { count: field_count, }
 }
 
 ///|
@@ -562,12 +568,12 @@ fn serde_decode_DecodeOnlyEvent_2(
   path : @json.JsonPath,
 ) -> DecodeOnlyEvent raise @json.JsonDecodeError {
   let obj = @serde.object(value, path)
-  let f0 : String = match obj.get("text") {
+  let field_text : String = match obj.get("text") {
     Some(String(value)) => value
     Some(value) => @json.from_json(value, path=path.add_key("text"))
     None => @serde.missing_field(path.add_key("text"), "text")
   }
-  Named(text=f0)
+  Named(text=field_text)
 }
 
 ///|
@@ -592,11 +598,11 @@ impl ToJson for PrivateRecord with fn to_json(self) {
 ///|
 impl @json.FromJson for PrivateRecord with fn from_json(value, path) {
   let obj = @serde.object(value, path)
-  let f0 : PrivateEvent = match obj.get("event") {
+  let field_event : PrivateEvent = match obj.get("event") {
     Some(value) => @json.from_json(value, path=path.add_key("event"))
     None => @serde.missing_field(path.add_key("event"), "event")
   }
-  { event: f0, }
+  { event: field_event, }
 }
 
 ///|
@@ -692,17 +698,18 @@ pub impl @json.FromJson for FixedPath with fn from_json(value, path) {
     ],
     path,
   )
-  let f0 : String = match
+  let field_status : String = match
     @serde.read_path(obj, ["part", "state", "status"], path) {
     (Some(value), at, _) => @json.from_json(value, path=at)
     (None, at, key) => @serde.missing_field(at, key)
   }
-  let f1 : Int32 = match
+  let field_count : Int32 = match
     @serde.read_path(obj, ["part", "state", "count"], path) {
     (Some(value), at, _) => @json.from_json(value, path=at)
     (None, _, _) => Default::default()
   }
-  let f2 : String? = match @serde.read_path(obj, ["part", "note"], path) {
+  let field_note : String? = match
+    @serde.read_path(obj, ["part", "note"], path) {
     (Some(value), at, _) =>
       match value {
         Null => None
@@ -710,7 +717,8 @@ pub impl @json.FromJson for FixedPath with fn from_json(value, path) {
       }
     (None, _, _) => None
   }
-  let f3 : String? = match @serde.read_path(obj, ["extras", "a/b~.c"], path) {
+  let field_extra : String? = match
+    @serde.read_path(obj, ["extras", "a/b~.c"], path) {
     (Some(value), at, _) =>
       match value {
         Null => None
@@ -718,7 +726,7 @@ pub impl @json.FromJson for FixedPath with fn from_json(value, path) {
       }
     (None, _, _) => None
   }
-  let f4 : String? = match
+  let field_escaped : String? = match
     @serde.read_path(obj, ["extras", "quote\"\\"], path) {
     (Some(value), at, _) =>
       match value {
@@ -727,34 +735,42 @@ pub impl @json.FromJson for FixedPath with fn from_json(value, path) {
       }
     (None, _, _) => None
   }
-  let f5 : String = match @serde.field(obj, "label", ["legacy"], path) {
+  let field_label : String = match
+    @serde.field(obj, "label", ["legacy"], path) {
     Some(String(value)) => value
     Some(value) => @json.from_json(value, path=path.add_key("label"))
     None => @serde.missing_field(path.add_key("label"), "label")
   }
-  { status: f0, count: f1, note: f2, extra: f3, escaped: f4, label: f5, }
+  {
+    status: field_status,
+    count: field_count,
+    note: field_note,
+    extra: field_extra,
+    escaped: field_escaped,
+    label: field_label,
+  }
 }
 
 ///|
 pub impl ToJson for Distance with fn to_json(self) {
   match self {
-    Distance(f0) => ToJson::to_json(f0)
+    Distance(inner) => ToJson::to_json(inner)
   }
 }
 
 ///|
 pub impl @json.FromJson for Distance with fn from_json(value, path) {
-  let f0 : Int32 = @json.from_json(value, path~)
-  Distance(f0)
+  let inner : Int32 = @json.from_json(value, path~)
+  Distance(inner)
 }
 
 ///|
 pub impl ToJson for Measurement with fn to_json(self) {
   match self {
-    Measurement(f0, f1) =>
+    Measurement(item_0, item_1) =>
       Json::array([
-        ToJson::to_json(f0),
-        match f1 {
+        ToJson::to_json(item_0),
+        match item_1 {
           None => Json::null()
           Some(option_1) => ToJson::to_json(option_1)
         },
@@ -765,23 +781,23 @@ pub impl ToJson for Measurement with fn to_json(self) {
 ///|
 pub impl @json.FromJson for Measurement with fn from_json(value, path) {
   let values = @serde.tuple(value, 2, path)
-  let f0 : Distance = @json.from_json(values[0], path=path.add_index(0))
-  let f1 : String? = match values[1] {
+  let item_0 : Distance = @json.from_json(values[0], path=path.add_index(0))
+  let item_1 : String? = match values[1] {
     Null => None
     option_1 => Some(@json.from_json(option_1, path=path.add_index(1)))
   }
-  Measurement(f0, f1)
+  Measurement(item_0, item_1)
 }
 
 ///|
 impl @json.FromJson for PrivateTuple with fn from_json(value, path) {
   let values = @serde.tuple(value, 2, path)
-  let f0 : Int32 = @json.from_json(values[0], path=path.add_index(0))
-  let f1 : Bool? = match values[1] {
+  let item_0 : Int32 = @json.from_json(values[0], path=path.add_index(0))
+  let item_1 : Bool? = match values[1] {
     Null => None
     option_1 => Some(@json.from_json(option_1, path=path.add_index(1)))
   }
-  PrivateTuple(f0, f1)
+  PrivateTuple(item_0, item_1)
 }
 
 ///|
@@ -800,21 +816,22 @@ pub impl[T : @json.FromJson, U : @json.FromJson + Default] @json.FromJson for Ge
   U,
 ] with fn from_json(value, path) {
   let obj = @serde.object(value, path)
-  let f0 : Array[T] = match @serde.read_path(obj, ["data", "items"], path) {
+  let field_items : Array[T] = match
+    @serde.read_path(obj, ["data", "items"], path) {
     (Some(value), at, _) => @json.from_json(value, path=at)
     (None, at, key) => @serde.missing_field(at, key)
   }
-  let f1 : U = match obj.get("fallback") {
+  let field_fallback : U = match obj.get("fallback") {
     Some(value) => @json.from_json(value, path=path.add_key("fallback"))
     None => Default::default()
   }
-  { items: f0, fallback: f1, }
+  { items: field_items, fallback: field_fallback, }
 }
 
 ///|
 pub impl[T : ToJson] ToJson for GenericBox[T] with fn to_json(self) {
   match self {
-    GenericBox(f0) => ToJson::to_json(f0)
+    GenericBox(inner) => ToJson::to_json(inner)
   }
 }
 
@@ -823,8 +840,8 @@ pub impl[T : @json.FromJson] @json.FromJson for GenericBox[T] with fn from_json(
   value,
   path,
 ) {
-  let f0 : T = @json.from_json(value, path~)
-  GenericBox(f0)
+  let inner : T = @json.from_json(value, path~)
+  GenericBox(inner)
 }
 
 ///|
@@ -832,10 +849,10 @@ pub impl[T : ToJson, U : ToJson] ToJson for GenericPair[T, U] with fn to_json(
   self,
 ) {
   match self {
-    GenericPair(f0, f1) =>
+    GenericPair(item_0, item_1) =>
       Json::array([
-        ToJson::to_json(f0),
-        match f1 {
+        ToJson::to_json(item_0),
+        match item_1 {
           None => Json::null()
           Some(option_1) => ToJson::to_json(option_1)
         },
@@ -849,12 +866,15 @@ pub impl[T : @json.FromJson, U : @json.FromJson] @json.FromJson for GenericPair[
   U,
 ] with fn from_json(value, path) {
   let values = @serde.tuple(value, 2, path)
-  let f0 : GenericBox[T] = @json.from_json(values[0], path=path.add_index(0))
-  let f1 : U? = match values[1] {
+  let item_0 : GenericBox[T] = @json.from_json(
+    values[0],
+    path=path.add_index(0),
+  )
+  let item_1 : U? = match values[1] {
     Null => None
     option_1 => Some(@json.from_json(option_1, path=path.add_index(1)))
   }
-  GenericPair(f0, f1)
+  GenericPair(item_0, item_1)
 }
 
 ///|
@@ -866,16 +886,16 @@ pub impl[T : ToJson, U : ToJson] ToJson for GenericAdjacent[T, U] with fn to_jso
       let tagged : Map[String, Json] = { "type": Json::string("Empty") }
       Json::object(tagged)
     }
-    Positional(f0) => {
+    Positional(inner) => {
       let tagged : Map[String, Json] = { "type": Json::string("Positional") }
-      let payload = ToJson::to_json(f0)
+      let payload = ToJson::to_json(inner)
       tagged.set("data", payload)
       Json::object(tagged)
     }
-    Named(value=f0) => {
+    Named(value=field_value) => {
       let tagged : Map[String, Json] = { "type": Json::string("Named") }
       let obj : Map[String, Json] = Map([])
-      obj.set("value", ToJson::to_json(f0))
+      obj.set("value", ToJson::to_json(field_value))
       let payload = Json::object(obj)
       tagged.set("data", payload)
       Json::object(tagged)
@@ -899,8 +919,8 @@ fn[T : @json.FromJson, U] serde_decode_GenericAdjacent_1(
   value : Json,
   path : @json.JsonPath,
 ) -> GenericAdjacent[T, U] raise @json.JsonDecodeError {
-  let f0 : T = @json.from_json(value, path~)
-  Positional(f0)
+  let inner : T = @json.from_json(value, path~)
+  Positional(inner)
 }
 
 ///|
@@ -909,11 +929,11 @@ fn[T, U : @json.FromJson] serde_decode_GenericAdjacent_2(
   path : @json.JsonPath,
 ) -> GenericAdjacent[T, U] raise @json.JsonDecodeError {
   let obj = @serde.object(value, path)
-  let f0 : U = match obj.get("value") {
+  let field_value : U = match obj.get("value") {
     Some(value) => @json.from_json(value, path=path.add_key("value"))
     None => @serde.missing_field(path.add_key("value"), "value")
   }
-  Named(value=f0)
+  Named(value=field_value)
 }
 
 ///|
@@ -944,13 +964,13 @@ pub impl[T : @json.FromJson, U : @json.FromJson] @json.FromJson for GenericAdjac
 ///|
 pub impl[T : ToJson] ToJson for GenericUntagged[T] with fn to_json(self) {
   match self {
-    Scalar(f0) => {
-      let payload = ToJson::to_json(f0)
+    Scalar(inner) => {
+      let payload = ToJson::to_json(inner)
       payload
     }
-    Batch(items=f0) => {
+    Batch(items=field_items) => {
       let obj : Map[String, Json] = Map([])
-      obj.set("items", ToJson::to_json(f0))
+      obj.set("items", ToJson::to_json(field_items))
       let payload = Json::object(obj)
       payload
     }
@@ -962,8 +982,8 @@ fn[T : @json.FromJson] serde_decode_GenericUntagged_0(
   value : Json,
   path : @json.JsonPath,
 ) -> GenericUntagged[T] raise @json.JsonDecodeError {
-  let f0 : T = @json.from_json(value, path~)
-  Scalar(f0)
+  let inner : T = @json.from_json(value, path~)
+  Scalar(inner)
 }
 
 ///|
@@ -972,11 +992,11 @@ fn[T : @json.FromJson] serde_decode_GenericUntagged_1(
   path : @json.JsonPath,
 ) -> GenericUntagged[T] raise @json.JsonDecodeError {
   let obj = @serde.object(value, path)
-  let f0 : Array[T] = match obj.get("items") {
+  let field_items : Array[T] = match obj.get("items") {
     Some(value) => @json.from_json(value, path=path.add_key("items"))
     None => @serde.missing_field(path.add_key("items"), "items")
   }
-  Batch(items=f0)
+  Batch(items=field_items)
 }
 
 ///|
@@ -995,8 +1015,8 @@ pub impl[T : @json.FromJson] @json.FromJson for ReadOnlyBox[T] with fn from_json
   value,
   path,
 ) {
-  let f0 : T = @json.from_json(value, path~)
-  ReadOnlyBox(f0)
+  let inner : T = @json.from_json(value, path~)
+  ReadOnlyBox(inner)
 }
 
 ///|
@@ -1009,17 +1029,17 @@ pub impl[T : ToJson] ToJson for WriteOnlyRecord[T] with fn to_json(self) {
 ///|
 pub impl[T : ToJson] ToJson for WriteOnlyTuple[T] with fn to_json(self) {
   match self {
-    WriteOnlyTuple(f0, f1) =>
-      Json::array([ToJson::to_json(f0), ToJson::to_json(f1)])
+    WriteOnlyTuple(item_0, item_1) =>
+      Json::array([ToJson::to_json(item_0), ToJson::to_json(item_1)])
   }
 }
 
 ///|
 pub impl[T : ToJson] ToJson for WriteOnlyEvent[T] with fn to_json(self) {
   match self {
-    Value(f0) => {
+    Value(inner) => {
       let tagged : Map[String, Json] = { "type": Json::string("Value") }
-      let payload = ToJson::to_json(f0)
+      let payload = ToJson::to_json(inner)
       tagged.set("data", payload)
       Json::object(tagged)
     }
@@ -1039,12 +1059,12 @@ pub impl[T : @json.FromJson, U : Default] @json.FromJson for WithSkipped[T, U] w
   path,
 ) {
   let obj = @serde.object(value, path)
-  let f0 : T = match obj.get("value") {
+  let field_value : T = match obj.get("value") {
     Some(value) => @json.from_json(value, path=path.add_key("value"))
     None => @serde.missing_field(path.add_key("value"), "value")
   }
-  let f1 : U = Default::default()
-  { value: f0, hidden: f1, }
+  let field_hidden : U = Default::default()
+  { value: field_value, hidden: field_hidden, }
 }
 
 ///|
@@ -1071,7 +1091,8 @@ pub impl[Read : @json.FromJson, Write, Scratch] @json.FromJson for DirectionalFi
   Scratch,
 ] with fn from_json(value, path) {
   let obj = @serde.object(value, path)
-  let f0 : Read? = match @serde.field(obj, "input", ["legacy_input"], path) {
+  let field_input : Read? = match
+    @serde.field(obj, "input", ["legacy_input"], path) {
     Some(value) =>
       match value {
         Null => None
@@ -1079,9 +1100,9 @@ pub impl[Read : @json.FromJson, Write, Scratch] @json.FromJson for DirectionalFi
       }
     None => None
   }
-  let f1 : Write? = empty_option()
-  let f2 : Array[Scratch] = empty_array()
-  { input: f0, output: f1, scratch: f2, }
+  let field_output : Write? = empty_option()
+  let field_scratch : Array[Scratch] = empty_array()
+  { input: field_input, output: field_output, scratch: field_scratch, }
 }
 
 ///|
@@ -1116,17 +1137,18 @@ pub impl @json.FromJson for CallableFields with fn from_json(value, path) {
     [["settings", "value"], ["hidden"], ["legacy_optional"]],
     path,
   )
-  let f0 : Int32? = match @serde.read_path(obj, ["settings", "value"], path) {
+  let field__value : Int32? = match
+    @serde.read_path(obj, ["settings", "value"], path) {
     (Some(value), at, _) =>
       match value {
         Null => None
         option_1 => Some(@json.from_json(option_1, path=at))
       }
-    (None, _, _) => fallback_value()
+    (None, _, _) => field_value()
   }
-  let f1 : Int32 = Default::default()
-  let f2 : Int32? = fallback_value()
-  let f3 : Int32? = match obj.get("legacy_optional") {
+  let field__status : Int32 = Default::default()
+  let field__hidden : Int32? = field_value()
+  let field__legacy_optional : Int32? = match obj.get("legacy_optional") {
     Some(value) =>
       match value {
         Null => None
@@ -1135,7 +1157,12 @@ pub impl @json.FromJson for CallableFields with fn from_json(value, path) {
       }
     None => None
   }
-  { value: f0, status: f1, hidden: f2, legacy_optional: f3, }
+  {
+    value: field__value,
+    status: field__status,
+    hidden: field__hidden,
+    legacy_optional: field__legacy_optional,
+  }
 }
 
 ///|
@@ -1149,15 +1176,15 @@ impl ToJson for HookModel with fn to_json(self) {
 ///|
 impl @json.FromJson for HookModel with fn from_json(value, path) {
   let obj = @serde.object(value, path)
-  let f0 : Code = match @serde.read_path(obj, ["meta", "id"], path) {
+  let field_id : Code = match @serde.read_path(obj, ["meta", "id"], path) {
     (Some(value), at, _) => decode_code(value, at)
     (None, at, key) => @serde.missing_field(at, key)
   }
-  let f1 : Code? = match obj.get("other") {
+  let field_other : Code? = match obj.get("other") {
     Some(value) => Code::deserialize(value, path.add_key("other"))
     None => None
   }
-  { id: f0, other: f1, }
+  { id: field_id, other: field_other, }
 }
 
 ///|
@@ -1175,35 +1202,37 @@ impl ToJson for FlattenedModel with fn to_json(self) {
 impl @json.FromJson for FlattenedModel with fn from_json(value, path) {
   let obj = @serde.object(value, path)
   let remaining = @serde.flattened_remainder(obj, ["id", "oldId", "meta"])
-  let f0 : Map[String, Json] = @json.from_json(remaining, path~)
-  let f1 : Int32 = match @serde.field(obj, "id", ["oldId"], path) {
+  let field_extra : Map[String, Json] = @json.from_json(remaining, path~)
+  let field_identifier : Int32 = match
+    @serde.field(obj, "id", ["oldId"], path) {
     Some(value) => @json.from_json(value, path=path.add_key("id"))
     None => @serde.missing_field(path.add_key("id"), "id")
   }
-  let f2 : Bool = match @serde.read_path(obj, ["meta", "active"], path) {
+  let field_active : Bool = match
+    @serde.read_path(obj, ["meta", "active"], path) {
     (Some(value), at, _) => @json.from_json(value, path=at)
     (None, at, key) => @serde.missing_field(at, key)
   }
-  { extra: f0, identifier: f1, active: f2, }
+  { extra: field_extra, identifier: field_identifier, active: field_active, }
 }
 
 ///|
 impl @json.FromJson for ScalarPaths with fn from_json(value, path) {
   let obj = @serde.object(value, path)
-  let f0 : String = match obj.get("a/b~c") {
+  let field_text : String = match obj.get("a/b~c") {
     Some(String(value)) => value
     Some(value) => @json.from_json(value, path=path.add_key("a/b~c"))
     None => @serde.missing_field(path.add_key("a/b~c"), "a/b~c")
   }
-  let f1 : Bool = match obj.get("active") {
+  let field_active : Bool = match obj.get("active") {
     Some(True) => true
     Some(False) => false
     Some(value) => @json.from_json(value, path=path.add_key("active"))
     None => @serde.missing_field(path.add_key("active"), "active")
   }
-  let f2 : String = match obj.get("label") {
+  let field_label : String = match obj.get("label") {
     Some(value) => decode_at_label(value, path.add_key("label"))
     None => @serde.missing_field(path.add_key("label"), "label")
   }
-  { text: f0, active: f1, label: f2, }
+  { text: field_text, active: field_active, label: field_label, }
 }

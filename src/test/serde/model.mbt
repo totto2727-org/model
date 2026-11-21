@@ -254,18 +254,18 @@ fn[T] empty_array() -> Array[T] {
 ///|
 #custom.serde(deny_unknown_fields)
 pub(all) struct CallableFields {
-  #custom.serde(path=["settings", "value"], default="fallback_value", skip_serializing_if="CallableFields::omit_value")
+  #custom.serde(path=["settings", "value"], default="field_value", skip_serializing_if="CallableFields::omit_value")
   value : Int32?
   #custom.serde(skip_deserializing, aliases="old_status")
   status : Int32
-  #custom.serde(skip, default="fallback_value")
+  #custom.serde(skip, default="field_value")
   hidden : Int32?
   #custom.serde(default)
   legacy_optional : Int32?
 }
 
 ///|
-fn fallback_value() -> Int32? {
+fn field_value() -> Int32? {
   Some(42)
 }
 

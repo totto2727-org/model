@@ -228,7 +228,11 @@ fn payload_arm(
           "_"
         } else {
           validated += 1
-          let binding = "\{p}item\{index}"
+          let binding = match slot.label {
+            Some(label) => "\{p}field_\{label}"
+            None if slots.length() == 1 => "\{p}inner"
+            None => "\{p}item_\{index}"
+          }
           let parent = if variant {
             "\{p}path.field(\"\{name}\")"
           } else {

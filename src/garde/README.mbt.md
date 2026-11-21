@@ -90,12 +90,12 @@ The generated `Endpoint::codec()` pairs the URL conversions:
 pub fn Endpoint::codec() -> @garde.Codec[Endpoint, EndpointDecoded] {
   @garde.Codec::new(
     fn(garde_value) {
-      guard @garde.parse_url(garde_value.url) is Some(garde_field0) else {
+      guard @garde.parse_url(garde_value.url) is Some(garde_decoded_url) else {
         return Err(
           @garde.conversion_failure("url", "could not convert validated value"),
         )
       }
-      Ok(EndpointDecoded::{ url: garde_field0, })
+      Ok(EndpointDecoded::{ url: garde_decoded_url, })
     },
     fn(garde_value) { Endpoint::{ url: garde_value.url.encode(), } },
   )
@@ -471,8 +471,8 @@ pub enum Update[T] {
 The tuple-struct match adds the position to the report path.
 
 ```mbt nocheck
-    Id(garde_item0) => {
-      let garde_value = garde_item0
+    Id(garde_inner) => {
+      let garde_value = garde_inner
       let garde_path = garde_path.index(0)
       if @garde.ascii(garde_value) is Some(message) {
         garde_report.add(garde_path, message)
@@ -492,13 +492,13 @@ pub impl[T : @garde.Validate] @garde.Validate for Update[T] with fn collect(
   garde_path,
 ) {
   match garde_self {
-    Replace(garde_item0) => {
-      let garde_value = garde_item0
+    Replace(garde_inner) => {
+      let garde_value = garde_inner
       let garde_path = garde_path.field("Replace").index(0)
       @garde.Validate::collect(garde_value, garde_report, garde_path)
     }
-    Rename(label=garde_item0) => {
-      let garde_value = garde_item0
+    Rename(label=garde_field_label) => {
+      let garde_value = garde_field_label
       let garde_path = garde_path.field("Rename").field("label")
       if @garde.length(garde_value, Some(1), None) is Some(message) {
         garde_report.add(garde_path, message)
@@ -653,8 +653,8 @@ impl @garde.Validate for Tag with fn collect(
   garde_path,
 ) {
   match garde_self {
-    Tag(garde_item0) => {
-      let garde_value = garde_item0
+    Tag(garde_inner) => {
+      let garde_value = garde_inner
       let garde_path = garde_path
       if @garde.length(garde_value, Some(3), None) is Some(message) {
         garde_report.add(garde_path, message)

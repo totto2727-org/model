@@ -67,7 +67,7 @@ fn emit_codec(
   let decode_fields : Array[String] = []
   let decode_body = StringBuilder()
   let domain_fields : Array[@syntax.FieldDecl] = []
-  for index, field in fields.to_array() {
+  for field in fields {
     let field_name = field.name.label
     let source = "\{p}value.\{field_name}"
     let mut ty = field.ty
@@ -75,7 +75,7 @@ fn emit_codec(
       None => (source, source)
       Some(conversion) => {
         ty = domain_type(field, conversion.ty)
-        let binding = "\{p}field\{index}"
+        let binding = "\{p}decoded_\{field_name}"
         let item = "\{p}item"
         let parsed = "\{p}parsed"
         let error = "return Err(@garde.conversion_failure(\"\{field_name}\", \"could not convert validated value\"))"

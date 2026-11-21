@@ -20,6 +20,21 @@ test "reject unsupported garde codec declarations" {
 }
 
 ///|
+test "codec bindings use field names rather than positions" {
+  let source =
+    #|#custom.garde(codec)
+    #|struct Endpoint {
+    #|  #custom.garde(url)
+    #|  url : String
+    #|  #custom.garde(ip)
+    #|  allowed_ip : String?
+    #|}
+  let generated = @garde_codegen.generate_many([("endpoint.mbt", source)])
+  assert_true(generated.contains("Some(garde_decoded_url)"))
+  assert_true(generated.contains("let garde_decoded_allowed_ip ="))
+}
+
+///|
 test "reject invalid rules at the field's source location" {
   for
     (attribute, field_type, expected) in [

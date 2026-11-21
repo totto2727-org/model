@@ -29,7 +29,7 @@ Serde supports only JSON and does not support custom codec hooks or flattening.
 
 Each section shows a minimal annotated model, the generated MoonBit code or the relevant excerpt, and behavior that is not visible from the code alone.
 The examples use the standard MoonBit formatting.
-Variable names such as `f0` can change when fields move.
+Generated bindings for named fields use the MoonBit field name, not the JSON key.
 
 ### `#custom.serde`: newtypes and tuple structs
 
@@ -52,29 +52,29 @@ Generated code:
 ///|
 pub impl ToJson for Id with fn to_json(self) {
   match self {
-    Id(f0) => ToJson::to_json(f0)
+    Id(inner) => ToJson::to_json(inner)
   }
 }
 
 ///|
 pub impl @json.FromJson for Id with fn from_json(value, path) {
-  let f0 : Int32 = @json.from_json(value, path~)
-  Id(f0)
+  let inner : Int32 = @json.from_json(value, path~)
+  Id(inner)
 }
 
 ///|
 pub impl ToJson for Point with fn to_json(self) {
   match self {
-    Point(f0, f1) => Json::array([ToJson::to_json(f0), ToJson::to_json(f1)])
+    Point(item_0, item_1) => Json::array([ToJson::to_json(item_0), ToJson::to_json(item_1)])
   }
 }
 
 ///|
 pub impl @json.FromJson for Point with fn from_json(value, path) {
   let values = @serde.tuple(value, 2, path)
-  let f0 : Int32 = @json.from_json(values[0], path=path.add_index(0))
-  let f1 : Int32 = @json.from_json(values[1], path=path.add_index(1))
-  Point(f0, f1)
+  let item_0 : Int32 = @json.from_json(values[0], path=path.add_index(0))
+  let item_1 : Int32 = @json.from_json(values[1], path=path.add_index(1))
+  Point(item_0, item_1)
 }
 ```
 
@@ -93,8 +93,8 @@ Generated code (there is no `ToJson` implementation):
 ```mbt nocheck
 ///|
 pub impl @json.FromJson for InputId with fn from_json(value, path) {
-  let f0 : Int32 = @json.from_json(value, path~)
-  InputId(f0)
+  let inner : Int32 = @json.from_json(value, path~)
+  InputId(inner)
 }
 ```
 
@@ -112,7 +112,7 @@ Generated code:
 ///|
 pub impl ToJson for OutputId with fn to_json(self) {
   match self {
-    OutputId(f0) => ToJson::to_json(f0)
+    OutputId(inner) => ToJson::to_json(inner)
   }
 }
 ```
@@ -208,26 +208,26 @@ pub impl @json.FromJson for Profile with fn from_json(value, path) {
     ],
     path,
   )
-  let f0 : String = match obj.get("displayName") {
+  let field_display_name : String = match obj.get("displayName") {
     Some(String(value)) => value
     Some(value) => @json.from_json(value, path=path.add_key("displayName"))
     None => @serde.missing_field(path.add_key("displayName"), "displayName")
   }
-  let f1 : String = match @serde.field(obj, "email", ["mail"], path) {
+  let field_address : String = match @serde.field(obj, "email", ["mail"], path) {
     Some(String(value)) => value
     Some(value) => @json.from_json(value, path=path.add_key("email"))
     None => @serde.missing_field(path.add_key("email"), "email")
   }
-  let f2 : String = match @serde.read_path(obj, ["meta", "status"], path) {
+  let field_status : String = match @serde.read_path(obj, ["meta", "status"], path) {
     (Some(value), at, _) => @json.from_json(value, path=at)
     (None, at, key) => @serde.missing_field(at, key)
   }
-  let f3 : Int32 = match obj.get("count") {
+  let field_count : Int32 = match obj.get("count") {
     Some(value) => @json.from_json(value, path=path.add_key("count"))
     None => Default::default()
   }
-  let f4 : Int32 = Default::default()
-  let f5 : String? = match obj.get("locale") {
+  let field_cache : Int32 = Default::default()
+  let field_locale : String? = match obj.get("locale") {
     Some(value) =>
       match value {
         Null => None
@@ -236,12 +236,12 @@ pub impl @json.FromJson for Profile with fn from_json(value, path) {
     None => None
   }
   {
-    display_name: f0,
-    address: f1,
-    status: f2,
-    count: f3,
-    cache: f4,
-    locale: f5,
+    display_name: field_display_name,
+    address: field_address,
+    status: field_status,
+    count: field_count,
+    cache: field_cache,
+    locale: field_locale,
   }
 }
 ```
@@ -260,7 +260,7 @@ Generated decoder excerpt:
 
 ```mbt nocheck
 ///|
-let f0 : String = match obj.get("displayName") {
+let field_display_name : String = match obj.get("displayName") {
   Some(String(value)) => value
   Some(value) => @json.from_json(value, path=path.add_key("displayName"))
   None => @serde.missing_field(path.add_key("displayName"), "displayName")
@@ -281,7 +281,7 @@ Generated encoder and decoder excerpts:
 
 ```mbt nocheck
 ///|
-let f1 : String = match @serde.field(obj, "email", ["mail"], path) {
+let field_address : String = match @serde.field(obj, "email", ["mail"], path) {
   Some(String(value)) => value
   Some(value) => @json.from_json(value, path=path.add_key("email"))
   None => @serde.missing_field(path.add_key("email"), "email")
@@ -305,7 +305,7 @@ Generated encoder and decoder excerpts:
 
 ```mbt nocheck
 ///|
-let f2 : String = match @serde.read_path(obj, ["meta", "status"], path) {
+let field_status : String = match @serde.read_path(obj, ["meta", "status"], path) {
   (Some(value), at, _) => @json.from_json(value, path=at)
   (None, at, key) => @serde.missing_field(at, key)
 }
@@ -319,7 +319,7 @@ Generated decoder excerpt:
 
 ```mbt nocheck
 ///|
-let f3 : Int32 = match obj.get("count") {
+let field_count : Int32 = match obj.get("count") {
   Some(value) => @json.from_json(value, path=path.add_key("count"))
   None => Default::default()
 }
@@ -333,7 +333,7 @@ Generated decoder excerpt:
 
 ```mbt nocheck
 ///|
-let f4 : Int32 = Default::default()
+let field_cache : Int32 = Default::default()
 ```
 
 Use `skip_serializing` to omit the field from output without changing how input is decoded. Use `skip_deserializing` to ignore input for the field without changing its output. Both `skip` and `skip_deserializing` use a callable `default` if one is given. Otherwise, they use `None` for an optional field and `Default::default()` for other fields.
@@ -413,7 +413,7 @@ let remaining = @serde.flattened_remainder(obj, ["label"])
 
 ```mbt nocheck
 ///|
-let f1 : Map[String, Json] = @json.from_json(remaining, path~)
+let field_extra : Map[String, Json] = @json.from_json(remaining, path~)
 ```
 
 The decoder passes the remaining keys to the flattened field after excluding the other fields' keys, aliases, and top-level path segments.
@@ -548,17 +548,17 @@ Generated decoder excerpt:
 
 ```mbt nocheck
 ///|
-let f0 : String = match obj.get("token") {
+let field_token : String = match obj.get("token") {
   Some(String(value)) => value
   Some(value) => @json.from_json(value, path=path.add_key("token"))
   None => @serde.missing_field(path.add_key("token"), "token")
 }
 
 ///|
-let f1 : Int32 = Default::default()
+let field_retries : Int32 = Default::default()
 
 ///|
-let f2 : Int32 = match obj.get("priority") {
+let field_priority : Int32 = match obj.get("priority") {
   Some(value) => @json.from_json(value, path=path.add_key("priority"))
   None => normal_priority()
 }
@@ -589,8 +589,8 @@ Generated encoder:
 pub impl ToJson for External with fn to_json(self) {
   match self {
     Idle => Json::string("Idle")
-    Text(f0) => {
-      let payload = ToJson::to_json(f0)
+    Text(inner) => {
+      let payload = ToJson::to_json(inner)
       Json::object({ "message": payload })
     }
   }
@@ -613,9 +613,9 @@ pub enum Internal {
 Generated encoder arm:
 
 ```mbt nocheck
-    NewMessage(text=f0) => {
+    NewMessage(text=field_text) => {
       let obj :Map[String, Json] = Map([])
-      obj.set("text", ToJson::to_json(f0))
+      obj.set("text", ToJson::to_json(field_text))
       obj.set("type", Json::string("new_message"))
       Json::object(obj)
     }
@@ -662,9 +662,9 @@ pub enum Adjacent {
 Generated encoder arm:
 
 ```mbt nocheck
-    Text(f0) => {
+    Text(inner) => {
       let tagged :Map[String, Json] = { "type": Json::string("Text") }
-      let payload = ToJson::to_json(f0)
+      let payload = ToJson::to_json(inner)
       tagged.set("data", payload)
       Json::object(tagged)
     }
@@ -714,7 +714,7 @@ Generated code:
 ///|
 pub impl[T : ToJson] ToJson for Box[T] with fn to_json(self) {
   match self {
-    Box(f0) => ToJson::to_json(f0)
+    Box(inner) => ToJson::to_json(inner)
   }
 }
 
@@ -723,8 +723,8 @@ pub impl[T : @json.FromJson] @json.FromJson for Box[T] with fn from_json(
   value,
   path,
 ) {
-  let f0 : T = @json.from_json(value, path~)
-  Box(f0)
+  let inner : T = @json.from_json(value, path~)
+  Box(inner)
 }
 ```
 
