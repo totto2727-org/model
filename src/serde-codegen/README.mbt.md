@@ -5,15 +5,8 @@ These traits control how a MoonBit type reads and writes JSON.
 
 ## Usage
 
-After [setup](#setup), put the [`Profile` record](#record-options) in `src/models/profile.mbt`.
-From the module root, run:
-
-```sh
-serde-gen --package src/models && moon check
-```
-
-The command writes `src/models/serde.generated.mbt`.
-See the [JSON input and output](#json-input-and-output) and the [complete generated codec](#complete-generated-codec) for `Profile`.
+See [Serde Usage](https://github.com/totto2727-org/model#usage) for a complete example that reads and writes the same `Endpoint` model with `@json.from_json` and `ToJson::to_json`.
+For more field options, see the [`Profile` record](#record-options) and its [complete generated codec](#complete-generated-codec).
 
 ## Key features
 
@@ -23,20 +16,21 @@ See the [JSON input and output](#json-input-and-output) and the [complete genera
 
 ## Prerequisites
 
-See the [Serde prerequisites](https://github.com/totto2727-org/serde#prerequisites) for the shared Moon toolchain and generator requirements.
+See the [Model prerequisites](https://github.com/totto2727-org/model#prerequisites) for the shared Moon toolchain and generator requirements.
 
 ## Setup
 
-Follow the [Serde setup](https://github.com/totto2727-org/serde#setup) and import `moonbitlang/core/json` and `totto2727/serde` in the model package.
+Install `model_gen` and add the [`dev_build` rule](https://github.com/totto2727-org/model#generate-code-with-dev_build) to the model package's `moon.pkg`.
+Import `moonbitlang/core/json` and `totto2727/model/serde` in that package.
 
 ## API
 
 Do not derive the same traits on an annotated type.
-Serde supports only JSON and does not support custom codec hooks or flattening.
+Serde generates code for MoonBit's `Json` type. See [flatten](#flatten-expand-a-child-object-into-its-parent) and [codec hooks](#codec-use-a-pair-of-conversion-functions) for field-level customization.
 
 Each section shows a minimal annotated model, the generated MoonBit code or the relevant excerpt, and behavior that is not visible from the code alone.
 The examples use the standard MoonBit formatting.
-Variable names such as `f0` can change when fields move.
+Generated bindings for named fields use the MoonBit field name, not the JSON key.
 
 ### `#custom.serde`: newtypes and tuple structs
 
@@ -59,29 +53,30 @@ Generated code:
 ///|
 pub impl ToJson for Id with fn to_json(self) {
   match self {
-    Id(f0) => ToJson::to_json(f0)
+    Id(inner) => ToJson::to_json(inner)
   }
 }
 
 ///|
 pub impl @json.FromJson for Id with fn from_json(value, path) {
-  let f0 : Int32 = @json.from_json(value, path~)
-  Id(f0)
+  let inner : Int32 = @json.from_json(value, path~)
+  Id(inner)
 }
 
 ///|
 pub impl ToJson for Point with fn to_json(self) {
   match self {
-    Point(f0, f1) => Json::array([ToJson::to_json(f0), ToJson::to_json(f1)])
+    Point(item_0, item_1) =>
+      Json::array([ToJson::to_json(item_0), ToJson::to_json(item_1)])
   }
 }
 
 ///|
 pub impl @json.FromJson for Point with fn from_json(value, path) {
   let values = @serde.tuple(value, 2, path)
-  let f0 : Int32 = @json.from_json(values[0], path=path.add_index(0))
-  let f1 : Int32 = @json.from_json(values[1], path=path.add_index(1))
-  Point(f0, f1)
+  let item_0 : Int32 = @json.from_json(values[0], path=path.add_index(0))
+  let item_1 : Int32 = @json.from_json(values[1], path=path.add_index(1))
+  Point(item_0, item_1)
 }
 ```
 
@@ -100,8 +95,8 @@ Generated code (there is no `ToJson` implementation):
 ```mbt nocheck
 ///|
 pub impl @json.FromJson for InputId with fn from_json(value, path) {
-  let f0 : Int32 = @json.from_json(value, path~)
-  InputId(f0)
+  let inner : Int32 = @json.from_json(value, path~)
+  InputId(inner)
 }
 ```
 
@@ -119,7 +114,7 @@ Generated code:
 ///|
 pub impl ToJson for OutputId with fn to_json(self) {
   match self {
-    OutputId(f0) => ToJson::to_json(f0)
+    OutputId(inner) => ToJson::to_json(inner)
   }
 }
 ```
@@ -215,24 +210,28 @@ pub impl @json.FromJson for Profile with fn from_json(value, path) {
     ],
     path,
   )
-  let f0 : String = match @serde.field(obj, "displayName", [], path) {
+  let field_display_name : String = match obj.get("displayName") {
+    Some(String(value)) => value
     Some(value) => @json.from_json(value, path=path.add_key("displayName"))
     None => @serde.missing_field(path.add_key("displayName"), "displayName")
   }
-  let f1 : String = match @serde.field(obj, "email", ["mail"], path) {
+  let field_address : String = match
+    @serde.field(obj, "email", ["mail"], path) {
+    Some(String(value)) => value
     Some(value) => @json.from_json(value, path=path.add_key("email"))
     None => @serde.missing_field(path.add_key("email"), "email")
   }
-  let f2 : String = match @serde.read_path(obj, ["meta", "status"], path) {
+  let field_status : String = match
+    @serde.read_path(obj, ["meta", "status"], path) {
     (Some(value), at, _) => @json.from_json(value, path=at)
     (None, at, key) => @serde.missing_field(at, key)
   }
-  let f3 : Int32 = match @serde.field(obj, "count", [], path) {
+  let field_count : Int32 = match obj.get("count") {
     Some(value) => @json.from_json(value, path=path.add_key("count"))
     None => Default::default()
   }
-  let f4 : Int32 = Default::default()
-  let f5 : String? = match @serde.field(obj, "locale", [], path) {
+  let field_cache : Int32 = Default::default()
+  let field_locale : String? = match obj.get("locale") {
     Some(value) =>
       match value {
         Null => None
@@ -241,12 +240,12 @@ pub impl @json.FromJson for Profile with fn from_json(value, path) {
     None => None
   }
   {
-    display_name: f0,
-    address: f1,
-    status: f2,
-    count: f3,
-    cache: f4,
-    locale: f5,
+    display_name: field_display_name,
+    address: field_address,
+    status: field_status,
+    count: field_count,
+    cache: field_cache,
+    locale: field_locale,
   }
 }
 ```
@@ -265,7 +264,8 @@ Generated decoder excerpt:
 
 ```mbt nocheck
 ///|
-let f0 : String = match @serde.field(obj, "displayName", [], path) {
+let field_display_name : String = match obj.get("displayName") {
+  Some(String(value)) => value
   Some(value) => @json.from_json(value, path=path.add_key("displayName"))
   None => @serde.missing_field(path.add_key("displayName"), "displayName")
 }
@@ -285,7 +285,8 @@ Generated encoder and decoder excerpts:
 
 ```mbt nocheck
 ///|
-let f1 : String = match @serde.field(obj, "email", ["mail"], path) {
+let field_address : String = match @serde.field(obj, "email", ["mail"], path) {
+  Some(String(value)) => value
   Some(value) => @json.from_json(value, path=path.add_key("email"))
   None => @serde.missing_field(path.add_key("email"), "email")
 }
@@ -308,7 +309,8 @@ Generated encoder and decoder excerpts:
 
 ```mbt nocheck
 ///|
-let f2 : String = match @serde.read_path(obj, ["meta", "status"], path) {
+let field_status : String = match
+  @serde.read_path(obj, ["meta", "status"], path) {
   (Some(value), at, _) => @json.from_json(value, path=at)
   (None, at, key) => @serde.missing_field(at, key)
 }
@@ -316,13 +318,13 @@ let f2 : String = match @serde.read_path(obj, ["meta", "status"], path) {
 
 #### `default`: fill a missing field
 
-`default` calls `Default::default()` when a key is missing. JSON `null` is still passed to the field decoder.
+Bare `default` calls `Default::default()` when a key is missing, or returns `None` for an optional field. Use `default="make_value"` to call a zero-argument function that returns the declared field type. This also lets an absent optional field default to `Some(...)`. A present JSON `null` still goes through the field decoder.
 
 Generated decoder excerpt:
 
 ```mbt nocheck
 ///|
-let f3 : Int32 = match @serde.field(obj, "count", [], path) {
+let field_count : Int32 = match obj.get("count") {
   Some(value) => @json.from_json(value, path=path.add_key("count"))
   None => Default::default()
 }
@@ -336,12 +338,18 @@ Generated decoder excerpt:
 
 ```mbt nocheck
 ///|
-let f4 : Int32 = Default::default()
+let field_cache : Int32 = Default::default()
 ```
 
-#### `skip_serializing_if`: omit an empty optional field
+Use `skip_serializing` to omit the field from output without changing how input is decoded. Use `skip_deserializing` to ignore input for the field without changing its output. Both `skip` and `skip_deserializing` use a callable `default` if one is given. Otherwise, they use `None` for an optional field and `Default::default()` for other fields.
 
-The supported predicate is `skip_serializing_if="Option::is_none"`. It omits `locale` when it is `None`. Without this attribute, the encoder writes `null`. In both cases, a missing key or JSON `null` decodes as `None`.
+#### `skip_serializing_if`: omit a field conditionally
+
+Use `skip_serializing_if="should_omit"` to call a function with the declared field value, including the `Option` wrapper if present. The function returns `Bool`. If it returns `true`, the encoder omits the key without calling the field serializer. This option does not change decoding.
+
+`skip_serializing_if="Option::is_none"` is available only on optional fields. It omits `locale` when it is `None`. Without this attribute, the encoder writes `null`. Unless a callable default is specified, both a missing key and JSON `null` decode as `None`.
+
+Callable defaults and predicates accept the same name syntax as codec hooks: `func`, `Type::method`, `@pkg.func`, and `@pkg.Type::method`.
 For a nested `Option`, `None` and `Some(None)` both encode as `null` when written, and `null` decodes back as `None`.
 At the first non-optional type, Serde uses that type's own codec. For example, the array codec handles `Array[T?]`.
 
@@ -361,7 +369,7 @@ Generated encoder excerpt:
 
 #### `deny_unknown_fields`: reject unrecognized keys
 
-The decoder accepts canonical names, read aliases, and the declared object paths. A skipped field name is accepted but its value is ignored. When a record has nested paths, the check also applies to the parent objects on those paths.
+The decoder accepts canonical names, read aliases, and the declared object paths. It accepts but ignores fields marked with `skip`. It rejects input keys, aliases, and paths for fields marked with `skip_deserializing`. When a record has nested paths, the check also applies to the parent objects on those paths.
 
 Generated decoder excerpt:
 
@@ -379,6 +387,186 @@ Generated decoder excerpt:
     ],
     path,
   )
+```
+
+#### `flatten`: expand a child object into its parent
+
+This model reads `{ "label": "desk", "color": "blue" }` and writes the same object.
+
+```mbt nocheck
+///|
+#custom.serde
+pub struct WithExtras {
+  label : String
+  #custom.serde(flatten)
+  extra : Map[String, Json]
+}
+```
+
+Generated encoder excerpt:
+
+```mbt nocheck
+  @serde.write_flattened(obj, ToJson::to_json(self.extra), ["label"])
+```
+
+Generated decoder excerpts:
+
+```mbt nocheck
+///|
+let remaining = @serde.flattened_remainder(obj, ["label"])
+```
+
+```mbt nocheck
+///|
+let field_extra : Map[String, Json] = @json.from_json(remaining, path~)
+```
+
+The decoder passes the remaining keys to the flattened field after excluding the other fields' keys, aliases, and top-level path segments.
+Use one non-optional flattened field per record and do not combine it with `deny_unknown_fields` or other options on the same field.
+The MoonBit `ToJson` trait cannot return an encoding error. Encoding aborts if the field produces a non-object value or a key reserved by the parent.
+
+#### `serialize_with` and `deserialize_with`: convert one field
+
+Use either option to replace the trait call in that direction. The other direction keeps the default codec unless it also has a hook.
+
+```mbt nocheck
+///|
+fn encode_count(value : Int32) -> Json {
+  ToJson::to_json(value)
+}
+
+///|
+fn decode_count(
+  value : Json,
+  path : @json.JsonPath,
+) -> Int32 raise @json.JsonDecodeError {
+  @json.from_json(value, path~)
+}
+
+///|
+#custom.serde
+pub struct Count {
+  #custom.serde(serialize_with="encode_count", deserialize_with="decode_count")
+  count : Int32
+}
+```
+
+Generated encoder excerpt:
+
+```mbt nocheck
+  obj.set("count", encode_count(self.count))
+```
+
+Generated decoder excerpt:
+
+```mbt nocheck
+    Some(value) => decode_count(value, path.add_key("count"))
+```
+
+Use a function name, an imported function such as `@wire.encode`, or a qualified method such as `Wire::encode`.
+The encoder receives the complete field value. The decoder receives the present JSON value and its path.
+A missing value still uses the field's usual rules for optional values, defaults, or missing-field errors.
+An explicit JSON `null` reaches the decoder hook unchanged.
+
+#### `codec`: use a pair of conversion functions
+
+`codec="Wire"` calls `Wire::serialize` and `Wire::deserialize`. `codec="@wire"` calls `@wire.serialize` and `@wire.deserialize` from an imported package.
+
+```mbt nocheck
+///|
+priv struct Wire(Int32)
+
+///|
+fn Wire::serialize(value : Wire) -> Json {
+  let Wire(number) = value
+  ToJson::to_json(number)
+}
+
+///|
+fn Wire::deserialize(
+  value : Json,
+  path : @json.JsonPath,
+) -> Wire raise @json.JsonDecodeError {
+  Wire(@json.from_json(value, path~))
+}
+
+///|
+#custom.serde
+priv struct Packet {
+  #custom.serde(codec="Wire")
+  id : Wire
+}
+```
+
+Generated encoder excerpt:
+
+```mbt nocheck
+  obj.set("id", Wire::serialize(self.id))
+```
+
+Generated decoder excerpt:
+
+```mbt nocheck
+    Some(value) => Wire::deserialize(value, path.add_key("id"))
+```
+
+Do not combine `codec` with either individual hook on the same field.
+The field type does not need to implement the JSON traits in the directions provided by hooks.
+
+#### Combine directional skips and callable options
+
+```mbt nocheck
+///|
+#custom.serde
+struct JobSettings {
+  #custom.serde(skip_serializing)
+  token : String
+  #custom.serde(skip_deserializing)
+  retries : Int32
+  #custom.serde(default="normal_priority", skip_serializing_if="is_normal_priority")
+  priority : Int32
+}
+
+///|
+fn normal_priority() -> Int32 {
+  10
+}
+
+///|
+fn is_normal_priority(value : Int32) -> Bool {
+  value == normal_priority()
+}
+```
+
+The encoder never writes `token`. The decoder requires `token`, ignores a supplied `retries`, and calls `normal_priority()` only if `priority` is missing.
+
+Generated encoder excerpt:
+
+```mbt nocheck
+  obj.set("retries", ToJson::to_json(self.retries))
+  if is_normal_priority(self.priority) == false {
+    obj.set("priority", ToJson::to_json(self.priority))
+  }
+```
+
+Generated decoder excerpt:
+
+```mbt nocheck
+///|
+let field_token : String = match obj.get("token") {
+  Some(String(value)) => value
+  Some(value) => @json.from_json(value, path=path.add_key("token"))
+  None => @serde.missing_field(path.add_key("token"), "token")
+}
+
+///|
+let field_retries : Int32 = Default::default()
+
+///|
+let field_priority : Int32 = match obj.get("priority") {
+  Some(value) => @json.from_json(value, path=path.add_key("priority"))
+  None => normal_priority()
+}
 ```
 
 ### Enum options
@@ -406,8 +594,8 @@ Generated encoder:
 pub impl ToJson for External with fn to_json(self) {
   match self {
     Idle => Json::string("Idle")
-    Text(f0) => {
-      let payload = ToJson::to_json(f0)
+    Text(inner) => {
+      let payload = ToJson::to_json(inner)
       Json::object({ "message": payload })
     }
   }
@@ -430,9 +618,9 @@ pub enum Internal {
 Generated encoder arm:
 
 ```mbt nocheck
-    NewMessage(text=f0) => {
+    NewMessage(text=field_text) => {
       let obj :Map[String, Json] = Map([])
-      obj.set("text", ToJson::to_json(f0))
+      obj.set("text", ToJson::to_json(field_text))
       obj.set("type", Json::string("new_message"))
       Json::object(obj)
     }
@@ -479,9 +667,9 @@ pub enum Adjacent {
 Generated encoder arm:
 
 ```mbt nocheck
-    Text(f0) => {
+    Text(inner) => {
       let tagged :Map[String, Json] = { "type": Json::string("Text") }
-      let payload = ToJson::to_json(f0)
+      let payload = ToJson::to_json(inner)
       tagged.set("data", payload)
       Json::object(tagged)
     }
@@ -517,8 +705,7 @@ Use a tagged representation if more than one variant can decode the same JSON va
 
 ### Generic models
 
-The generator adds `ToJson` and `@json.FromJson` bounds for the necessary type parameters in each direction. A `default` or `skip` rule can also require `Default`.
-A skipped field does not require a JSON trait.
+The generator adds `ToJson` and `@json.FromJson` bounds for the necessary type parameters in each direction. A field does not require the JSON trait for a direction it skips. A fallback to `Default::default()` can require `Default`, but a callable default does not add that bound.
 
 ```mbt nocheck
 ///|
@@ -532,7 +719,7 @@ Generated code:
 ///|
 pub impl[T : ToJson] ToJson for Box[T] with fn to_json(self) {
   match self {
-    Box(f0) => ToJson::to_json(f0)
+    Box(inner) => ToJson::to_json(inner)
   }
 }
 
@@ -541,8 +728,8 @@ pub impl[T : @json.FromJson] @json.FromJson for Box[T] with fn from_json(
   value,
   path,
 ) {
-  let f0 : T = @json.from_json(value, path~)
-  Box(f0)
+  let inner : T = @json.from_json(value, path~)
+  Box(inner)
 }
 ```
 
@@ -554,8 +741,8 @@ If no untagged variant matches, the message includes the path and reason for eac
 
 ## Development
 
-For repository maintenance instructions, see [AGENTS.md](https://github.com/totto2727-org/serde/blob/main/AGENTS.md).
+For repository maintenance instructions, see [AGENTS.md](https://github.com/totto2727-org/model/blob/main/AGENTS.md).
 
 ## License
 
-[MIT](https://github.com/totto2727-org/serde/blob/main/LICENSE)
+[MIT](https://github.com/totto2727-org/model/blob/main/LICENSE)

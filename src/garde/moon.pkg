@@ -1,3 +1,9 @@
 import {
   "moonbitlang/core/list",
+  "moonbitlang/core/string",
+  "moonbitstack/moonip",
+  "moonbitstack/moonmail",
+  "moonbitstack/moonucd",
+  "moonbitstack/moonurl",
+  "sssssurf/dialnumber",
 }

@@ -1,0 +1,11 @@
+import {
+  "moonbitlang/core/bigint",
+  "moonbitlang/core/json",
+  "totto2727/model/serde",
+  "totto2727/model/garde",
+}
+
+import {
+  "totto2727/model/garde" @garde_api,
+  "totto2727/model/test/garde" @models,
+} for "test"

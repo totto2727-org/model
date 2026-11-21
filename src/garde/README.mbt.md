@@ -5,112 +5,75 @@ Run validation explicitly on decoded or manually constructed values.
 
 ## Usage
 
-### Validate after decoding
-
-After [setup](#setup), put this model in `src/models/signup.mbt`.
-Add both attributes when a type needs a JSON codec and a validator.
+After [setup](#setup), define the JSON model in `src/models/endpoint.mbt`.
+Garde generates the `EndpointDecoded` type with a typed URL field.
 
 ```mbt nocheck
 ///|
 #custom.serde
 #custom.garde
-pub(all) struct Signup {
-  #custom.serde(rename="displayName")
-  #custom.garde(length(min="3"))
-  name : String
-  #custom.garde(length(min="1"))
-  email : String
-  #custom.garde(inner(length(min="1")))
-  roles : Array[String]
+pub(all) struct Endpoint {
+  #custom.serde(rename="endpointUrl")
+  #custom.garde(url)
+  url : String
 }
 ```
 
-From the module root, run:
-
-```sh
-serde-gen --package src/models && moon check
-```
-
-The command writes `src/models/serde.generated.mbt`.
-Put this function in `src/models/signup_check.mbt` to decode the input and then validate it:
+Put this test in `src/models/endpoint_wbtest.mbt`.
 
 ```mbt nocheck
 ///|
-fn check_signup(input : Json) -> Result[Unit, @garde.Report] raise {
-  let signup : Signup = @json.from_json(input)
-  @garde.validate(signup)
+test "round-trip an endpoint with Garde" {
+  let input : Json = { "endpointUrl": "https://EXAMPLE.org:443/docs" }
+  let wire : Endpoint = @json.from_json(input)
+  guard wire.validate() is Ok(_) else { fail("invalid endpoint") }
+  guard wire.to_decoded() is Ok(decoded) else {
+    fail("could not decode endpoint")
+  }
+  guard decoded.to_encoded() is Ok(encoded) else {
+    fail("could not encode endpoint")
+  }
+  assert_eq(encoded.to_json(), { "endpointUrl": "https://example.org/docs" })
 }
 ```
 
-Decoding succeeds for this input:
-
-```json
-{
-  "displayName": "x",
-  "email": "",
-  "roles": [""]
-}
-```
-
-Validation then reports `name`, `email`, and `roles[0]`.
-A missing `email` fails during decoding because its type is `String`.
-
-### Complete generated validator
-
-This is the complete `@garde.Validate` implementation for `Signup`.
-For the JSON codec, see [Serde attributes](https://mooncakes.io/docs/totto2727/serde/serde-codegen).
-
-```mbt nocheck
-///|
-pub impl @garde.Validate for Signup with fn collect(
-  garde_self,
-  garde_report,
-  garde_path,
-) {
-  {
-    let garde_value = garde_self.name
-    let garde_path = garde_path.field("name")
-    if @garde.length(garde_value, Some(3), None) is Some(message) {
-      garde_report.add(garde_path, message)
-    }
-  }
-  {
-    let garde_value = garde_self.email
-    let garde_path = garde_path.field("email")
-    if @garde.length(garde_value, Some(1), None) is Some(message) {
-      garde_report.add(garde_path, message)
-    }
-  }
-  let garde_value = garde_self.roles
-  let garde_path = garde_path.field("roles")
-  for garde_index, garde_value in garde_value {
-    let garde_path = garde_path.index(garde_index)
-    if @garde.length(garde_value, Some(1), None) is Some(message) {
-      garde_report.add(garde_path, message)
-    }
-  }
-}
-```
+`@json.from_json` reads the wire model with the generated Serde implementation.
+`wire.validate()` checks the model without converting it.
+`wire.to_decoded()` also validates, so omit the separate validation call if you only need the typed model.
+`decoded.to_encoded()` converts the typed model back to `Endpoint` and validates it.
+The URL formatter normalizes the host and removes the default port before `encoded.to_json()` writes the final JSON value.
 
 ## Key features
 
 - Validate decoded values separately from JSON decoding.
 - Collect multiple violations with field and index paths.
 - Validate nested values and use custom rules with a typed context.
+- Convert validated URL and IP fields to typed values and back.
 
 ## Prerequisites
 
-See the [Serde prerequisites](https://github.com/totto2727-org/serde#prerequisites) for the shared Moon toolchain and generator requirements.
+See the [Model prerequisites](https://github.com/totto2727-org/model#prerequisites) for the shared Moon toolchain and generator requirements.
 
 ## Setup
 
-Follow the [Serde setup](https://github.com/totto2727-org/serde#setup) and select a release that includes Garde.
-Import `totto2727/serde/garde` in the model package.
-For the JSON example above, also import `moonbitlang/core/json` and `totto2727/serde`.
+Install `model_gen` and add the [`dev_build` rule](https://github.com/totto2727-org/model#generate-code-with-dev_build) to `src/models/moon.pkg`.
+Import `totto2727/model/garde` in the model package.
+For the JSON example above, also import `moonbitlang/core/json` and `totto2727/model/serde`.
+
+## Typed model conversion
+
+On a record without a validation context, `#custom.garde` generates `Validate` and a `ModelDecoded` type. The original record remains the wire type.
+Use `#custom.garde(validate_only)` to skip conversions. Contextual records, tuple structs, and enums generate validation only.
+
+- `to_decoded()` validates before converting. `to_encoded()` converts back and validates the result.
+- The decoded constructor takes typed fields without validating them. Use labels when it takes two or more arguments.
+- With a Serde encoder, `to_json()` returns `Json` on the wire record without validation and `Result[Json, @garde.Report]` on the decoded record after validation.
+
+Direct URL, IP, and phone rules convert strings to `@garde.Url`, `@garde.Addr`, and `@garde.PhoneNumber`. Encoding can normalize the text.
 
 ## API
 
-Call `@garde.validate(value)` for a model that implements `Validate`.
+Call `value.validate()` for a public model with a generated validator, or `@garde.validate(value)` for any model that implements `Validate`.
 For a model with a validation context, call `value.validate_with(context)` instead.
 Use `report.violations()` to read violations and `issue.path.segments()` to read their typed `Field` and `Index` segments.
 The report uses MoonBit field names, not JSON keys set by Serde.
@@ -179,13 +142,16 @@ pub impl @garde.Validate for Contact with fn collect(
 }
 ```
 
-`length` counts UTF-8 bytes for `String` and items for `Array`, `ReadOnlyArray`, and `FixedArray`. Other types can implement `@garde.Length`.
-Use quoted decimal bounds with `length` and `range`: `min`, `max`, both, or `equal` alone. The MoonBit attribute parser does not accept bare integers in these rules.
+`length` uses MoonBit's `String.length()` (UTF-16 code units) for strings and counts items for arrays, maps, and byte strings. Other types can implement `@garde.Length`.
+Use `min`, `max`, both, or `equal` alone. Quote numeric literals because the MoonBit attribute parser does not accept bare numbers. `range` also accepts named constants.
+For quoted literals, Garde discards type suffixes such as `L` and `F`, and the MoonBit compiler uses the field's type.
+Named constants retain their declared type and must match the field.
+Garde does not convert bounds to `Double` or check numeric limits itself.
 Use `skip` alone on a field, payload, or variant.
 
 ### `ascii`, `alphanumeric`, `contains`, `prefix`, `suffix`, and `custom`
 
-`ascii` accepts only ASCII characters, and `alphanumeric` accepts only ASCII letters and digits.
+`ascii` accepts only ASCII characters. `alphanumeric` accepts Unicode alphabetic and numeric characters.
 Use `length(min="1")` if an empty string should also fail.
 `contains`, `prefix`, and `suffix` are case-sensitive and accept JSON-compatible escapes in their arguments.
 A function passed to `custom` receives the field value and returns `None` on success or `Some(message)` on failure.
@@ -240,6 +206,148 @@ Each rule can add a separate violation to the same field path.
   let garde_path = garde_path.field("code")
   if check_code(garde_value) is Some(message) {
     garde_report.add(garde_path, message)
+  }
+```
+
+### `email`, `url`, `ip`, `ipv4`, `ipv6`, and `phone_number`
+
+Apply these rules to strings. For an optional string, validation skips `None` unless you also apply `required`.
+
+```mbt nocheck
+///|
+#custom.garde
+struct ContactFormats {
+  #custom.garde(email)
+  email : String
+  #custom.garde(url)
+  website : String
+  #custom.garde(ip)
+  address : String
+  #custom.garde(ipv4)
+  address_v4 : String
+  #custom.garde(ipv6)
+  address_v6 : String
+  #custom.garde(phone_number)
+  phone : String
+}
+```
+
+Generated checks inside `@garde.Validate::collect`:
+
+```mbt nocheck
+///|
+pub impl @garde.Validate for ContactFormats with fn collect(
+  garde_self,
+  garde_report,
+  garde_path,
+) {
+  {
+    let garde_value = garde_self.email
+    let garde_path = garde_path.field("email")
+    if @garde.email(garde_value) is Some(message) {
+      garde_report.add(garde_path, message)
+    }
+  }
+  {
+    let garde_value = garde_self.website
+    let garde_path = garde_path.field("website")
+    if @garde.url(garde_value) is Some(message) {
+      garde_report.add(garde_path, message)
+    }
+  }
+  {
+    let garde_value = garde_self.address
+    let garde_path = garde_path.field("address")
+    if @garde.ip(garde_value) is Some(message) {
+      garde_report.add(garde_path, message)
+    }
+  }
+  {
+    let garde_value = garde_self.address_v4
+    let garde_path = garde_path.field("address_v4")
+    if @garde.ipv4(garde_value) is Some(message) {
+      garde_report.add(garde_path, message)
+    }
+  }
+  {
+    let garde_value = garde_self.address_v6
+    let garde_path = garde_path.field("address_v6")
+    if @garde.ipv6(garde_value) is Some(message) {
+      garde_report.add(garde_path, message)
+    }
+  }
+  let garde_value = garde_self.phone
+  let garde_path = garde_path.field("phone")
+  if @garde.phone_number(garde_value) is Some(message) {
+    garde_report.add(garde_path, message)
+  }
+}
+```
+
+| Rule | Accepted input and limits |
+| --- | --- |
+| `email` | A bare email address parsed by [MoonMail](https://mooncakes.io/docs/moonbitstack/moonmail), without a display name, angle brackets, comments, or a group. |
+| `url` | An absolute URL, including schemes such as `mailto:` and `file:`. Uses [MoonURL](https://mooncakes.io/docs/moonbitstack/moonurl) in WHATWG mode. |
+| `ip`, `ipv4`, `ipv6` | Bare IPv4 or IPv6 text, without a port, brackets, or zone identifier. IPv4 uses four decimal octets. Uses [MoonIP](https://mooncakes.io/docs/moonbitstack/moonip). |
+| `phone_number` | An international number with a country calling code. Uses [dialnumber](https://mooncakes.io/docs/sssssurf/dialnumber) for numbering-plan checks and does not assume a default region. |
+
+These rules do not contact an external service.
+A valid email address or telephone number is not evidence that it is assigned or reachable.
+
+MoonMail determines which address syntax to accept, including Unicode and quoted local parts such as `"a@b"@example.org`.
+Garde does not add DNS, IDNA, or length checks.
+
+### `pattern`
+
+Use `pattern("...")` to check a `String` with a MoonBit regular expression.
+Use `pattern(matcher)` to call a named `String -> Bool` function instead. The generated check reports a violation when `!matcher(garde_value)`.
+The rule searches for a match anywhere in the string. Use `^` and `$` to check the whole string, as below.
+Write regex backslashes as `\\` inside the quoted attribute.
+The generator rejects malformed expressions. For an optional string, the rule runs only on `Some`.
+
+```mbt nocheck
+///|
+#custom.garde
+pub struct Reference {
+  #custom.garde(pattern("^ID-[0-9]+\\.$"))
+  code : String
+}
+```
+
+The generated validator adds a violation at `code` if the expression does not match.
+
+```mbt nocheck
+  let garde_value = garde_self.code
+  let garde_path = garde_path.field("code")
+  if @garde.pattern(garde_value, "^ID-[0-9]+\\.$") is Some(message) {
+    garde_report.add(garde_path, message)
+  }
+```
+
+### `matches`
+
+Use `matches(field)` directly on a record field to compare it with a sibling.
+Use the sibling's MoonBit name, not its JSON key. The two fields must have the same type and support `Eq`.
+The rule compares whole values. For two optional fields, `None` matches `None`, but does not match `Some`.
+
+```mbt nocheck
+///|
+#custom.garde
+pub struct Confirmation {
+  #custom.garde(skip)
+  code : String
+  #custom.garde(matches(code))
+  repeated : String
+}
+```
+
+The generated validator reports a mismatch at `repeated`, not `code`.
+
+```mbt nocheck
+  let garde_value = garde_self.repeated
+  let garde_path = garde_path.field("repeated")
+  if garde_value != garde_self.code {
+    garde_report.add(garde_path, "must match code")
   }
 ```
 
@@ -312,8 +420,8 @@ pub enum Update[T] {
 The tuple-struct match adds the position to the report path.
 
 ```mbt nocheck
-    Id(garde_item0) => {
-      let garde_value = garde_item0
+    Id(garde_inner) => {
+      let garde_value = garde_inner
       let garde_path = garde_path.index(0)
       if @garde.ascii(garde_value) is Some(message) {
         garde_report.add(garde_path, message)
@@ -333,13 +441,13 @@ pub impl[T : @garde.Validate] @garde.Validate for Update[T] with fn collect(
   garde_path,
 ) {
   match garde_self {
-    Replace(garde_item0) => {
-      let garde_value = garde_item0
+    Replace(garde_inner) => {
+      let garde_value = garde_inner
       let garde_path = garde_path.field("Replace").index(0)
       @garde.Validate::collect(garde_value, garde_report, garde_path)
     }
-    Rename(label=garde_item0) => {
-      let garde_value = garde_item0
+    Rename(label=garde_field_label) => {
+      let garde_value = garde_field_label
       let garde_path = garde_path.field("Rename").field("label")
       if @garde.length(garde_value, Some(1), None) is Some(message) {
         garde_report.add(garde_path, message)
@@ -354,7 +462,8 @@ pub impl[T : @garde.Validate] @garde.Validate for Update[T] with fn collect(
 
 A direct `length` check on `T` adds a `Length` bound.
 Use `bounds` to specify a parameter's bounds when the needed traits cannot be inferred, for example when `dive` targets a wrapper around `T`.
-Valid lists include `[Length]`, `[Validate, Length]`, and `[]` to suppress that parameter's inferred bounds.
+Valid lists include `[Length]`, `[Validate, Length]`, `[Eq]`, and `[]` to suppress that parameter's inferred bounds.
+`matches` infers an `Eq` bound when a compared field uses a type parameter.
 Unused or skipped type parameters need no bound.
 
 ```mbt nocheck
@@ -457,10 +566,77 @@ The generated request collector passes the policy and the item path to each allo
   }
 ```
 
+### `when`, `when_with`, `dive_with(field)`, and `transparent`
+
+Use `when(predicate, rules...)` to apply rules only when `predicate(model)` is true. The predicate receives the entire model so it can read sibling fields. `when_with` also passes the typed context as the second argument.
+Use `dive_with(field)` to pass a sibling field as the type-specific context for a nested value. `dive` without a context also works directly on arrays and string-keyed maps. The generated collector adds the item's index or key to the path.
+Use `transparent` on a record or tuple struct with exactly one validated field. When another model dives into this wrapper, violations keep the wrapper's path without adding its inner field or tuple index.
+
+```mbt nocheck
+///|
+#custom.garde(transparent, field(index="0", length(min="3")))
+struct Tag(String)
+
+///|
+#custom.garde
+struct PublishRequest {
+  #custom.garde(skip)
+  published : Bool
+  #custom.garde(when(is_published, required, dive))
+  tag : Tag?
+}
+
+///|
+fn is_published(value : PublishRequest) -> Bool {
+  value.published
+}
+```
+
+Generated collectors:
+
+```mbt nocheck
+///|
+impl @garde.Validate for Tag with fn collect(
+  garde_self,
+  garde_report,
+  garde_path,
+) {
+  match garde_self {
+    Tag(garde_inner) => {
+      let garde_value = garde_inner
+      let garde_path = garde_path
+      if @garde.length(garde_value, Some(3), None) is Some(message) {
+        garde_report.add(garde_path, message)
+      }
+    }
+  }
+}
+
+///|
+impl @garde.Validate for PublishRequest with fn collect(
+  garde_self,
+  garde_report,
+  garde_path,
+) {
+  let garde_value = garde_self.tag
+  let garde_path = garde_path.field("tag")
+  if is_published(garde_self) {
+    if garde_value is None {
+      garde_report.add(garde_path, "is required")
+    }
+    if garde_value is Some(garde_value) {
+      @garde.Validate::collect(garde_value, garde_report, garde_path)
+    }
+  }
+}
+```
+
+A published request with an absent or short tag reports `tag`, not `tag[0]`. An unpublished request skips these rules. Conditions and context selection do not change decoding.
+
 ## Development
 
-For repository maintenance instructions, see [AGENTS.md](https://github.com/totto2727-org/serde/blob/main/AGENTS.md).
+For repository maintenance instructions, see [AGENTS.md](https://github.com/totto2727-org/model/blob/main/AGENTS.md).
 
 ## License
 
-[MIT](https://github.com/totto2727-org/serde/blob/main/LICENSE)
+[MIT](https://github.com/totto2727-org/model/blob/main/LICENSE)

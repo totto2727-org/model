@@ -5,20 +5,7 @@ pub(open) trait Length {
 
 ///|
 pub impl Length for String with fn garde_length(self) {
-  let mut count = 0
-  for char in self {
-    let code = char.to_int()
-    count += if code < 0x80 {
-      1
-    } else if code < 0x800 {
-      2
-    } else if code < 0x10000 {
-      3
-    } else {
-      4
-    }
-  }
-  count
+  self.length()
 }
 
 ///|
@@ -37,7 +24,17 @@ pub impl[T] Length for FixedArray[T] with fn garde_length(self) {
 }
 
 ///|
-/// Check the UTF-8 byte length of a string or the number of items in an array.
+pub impl[K, V] Length for Map[K, V] with fn garde_length(self) {
+  self.length()
+}
+
+///|
+pub impl Length for Bytes with fn garde_length(self) {
+  self.length()
+}
+
+///|
+/// Check a string's length in UTF-16 code units or a container's item count.
 pub fn[T : Length] length(value : T, min : Int32?, max : Int32?) -> String? {
   let count = T::garde_length(value)
   if min is Some(n) && count < n {
@@ -50,11 +47,13 @@ pub fn[T : Length] length(value : T, min : Int32?, max : Int32?) -> String? {
 }
 
 ///|
-/// Check inclusive bounds on an integer.
-pub fn range(value : Int32, min : Int32?, max : Int32?) -> String? {
-  if min is Some(n) && value < n {
+/// Check inclusive bounds using the type's standard comparison.
+pub fn[T : Compare + Show] range(value : T, min : T?, max : T?) -> String? {
+  if value != value {
+    Some("must be comparable to the bounds")
+  } else if min is Some(n) && (n != n || compare(value, n) < 0) {
     Some("must be at least \{n}")
-  } else if max is Some(n) && value > n {
+  } else if max is Some(n) && (n != n || compare(value, n) > 0) {
     Some("must be at most \{n}")
   } else {
     None
@@ -74,9 +73,8 @@ pub fn ascii(value : String) -> String? {
 ///|
 pub fn alphanumeric(value : String) -> String? {
   for char in value {
-    match char {
-      'a'..<='z' | 'A'..<='Z' | '0'..<='9' => ()
-      _ => return Some("must contain only ASCII letters and digits")
+    if !char.is_numeric() && !@moonucd.has(char, Alphabetic) {
+      return Some("must contain only letters and numbers")
     }
   }
   None
@@ -106,5 +104,18 @@ pub fn suffix(value : String, expected : String) -> String? {
     None
   } else {
     Some("must end with '\{expected}'")
+  }
+}
+
+///|
+/// Check whether the regular expression matches anywhere in the string.
+pub fn pattern(value : String, expression : String) -> String? {
+  let regex = @string.Regex(expression[:]) catch {
+    _ => return Some("invalid regular expression")
+  }
+  if regex.execute(value[:]) is Some(_) {
+    None
+  } else {
+    Some("does not match the pattern")
   }
 }

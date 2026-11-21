@@ -99,6 +99,39 @@ pub fn write_path(
 }
 
 ///|
+/// Copy the keys that are not claimed by the enclosing record.
+pub fn flattened_remainder(
+  fields : Map[String, Json],
+  reserved : Array[String],
+) -> Json {
+  let remaining = Map([])
+  for key, value in fields {
+    if !reserved.contains(key) {
+      remaining[key] = value
+    }
+  }
+  Json::object(remaining)
+}
+
+///|
+/// Expand an object into its parent without overwriting a parent key.
+pub fn write_flattened(
+  fields : Map[String, Json],
+  value : Json,
+  reserved : Array[String],
+) -> Unit {
+  guard value is Object(child) else {
+    abort("a flattened Serde field must encode as a JSON object")
+  }
+  for key, value in child {
+    if reserved.contains(key) {
+      abort("flattened Serde key collides with the enclosing record: \{key}")
+    }
+    fields[key] = value
+  }
+}
+
+///|
 /// Reject unexpected keys without changing the caller's object.
 pub fn deny_unknown(
   fields : Map[String, Json],
@@ -131,12 +164,11 @@ fn deny_unknown_at(
 ) -> Unit raise @json.JsonDecodeError {
   for key, value in fields {
     let matching = paths.filter(keys => keys[depth] == key)
-    let field_path = path.add_key(key)
     if matching.is_empty() {
-      invalid(field_path, "unknown field: \{key}")
+      invalid(path.add_key(key), "unknown field: \{key}")
     }
     if value is Object(child) && matching[0].length() > depth + 1 {
-      deny_unknown_at(child, matching, field_path, depth + 1)
+      deny_unknown_at(child, matching, path.add_key(key), depth + 1)
     }
   }
 }

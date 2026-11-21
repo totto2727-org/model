@@ -229,3 +229,193 @@ pub struct WithSkipped[T, U] {
   #custom.serde(skip)
   hidden : U
 }
+
+///|
+#custom.serde
+pub(all) struct DirectionalFields[Read, Write, Scratch] {
+  #custom.serde(skip_serializing, aliases="legacy_input")
+  input : Read?
+  #custom.serde(skip_deserializing, default="empty_option")
+  output : Write?
+  #custom.serde(skip, default="empty_array")
+  scratch : Array[Scratch]
+}
+
+///|
+fn[T] empty_option() -> T? {
+  None
+}
+
+///|
+fn[T] empty_array() -> Array[T] {
+  []
+}
+
+///|
+#custom.serde(deny_unknown_fields)
+pub(all) struct CallableFields {
+  #custom.serde(path=["settings", "value"], default="field_value", skip_serializing_if="CallableFields::omit_value")
+  value : Int32?
+  #custom.serde(skip_deserializing, aliases="old_status")
+  status : Int32
+  #custom.serde(skip, default="field_value")
+  hidden : Int32?
+  #custom.serde(default)
+  legacy_optional : Int32?
+}
+
+///|
+fn field_value() -> Int32? {
+  Some(42)
+}
+
+///|
+fn CallableFields::omit_value(value : Int32?) -> Bool {
+  value == Some(0)
+}
+
+///|
+priv struct Code(Int32)
+
+///|
+fn encode_code(code : Code) -> Json {
+  let Code(number) = code
+  ToJson::to_json(number)
+}
+
+///|
+fn decode_code(
+  value : Json,
+  path : @json.JsonPath,
+) -> Code raise @json.JsonDecodeError {
+  Code(@json.from_json(value, path~))
+}
+
+///|
+fn Code::serialize(value : Code?) -> Json {
+  match value {
+    None => Json::null()
+    Some(code) => encode_code(code)
+  }
+}
+
+///|
+fn Code::deserialize(
+  value : Json,
+  path : @json.JsonPath,
+) -> Code? raise @json.JsonDecodeError {
+  Some(decode_code(value, path))
+}
+
+///|
+#custom.serde
+priv struct HookModel {
+  #custom.serde(serialize_with="encode_code", deserialize_with="decode_code", path=["meta", "id"])
+  id : Code
+  #custom.serde(codec="Code")
+  other : Code?
+}
+
+///|
+#custom.serde
+priv struct FlattenedModel {
+  #custom.serde(flatten)
+  extra : Map[String, Json]
+  #custom.serde(rename="id", aliases=["oldId"])
+  identifier : Int32
+  #custom.serde(path=["meta", "active"])
+  active : Bool
+}
+
+///|
+test "field hooks replace JSON traits and receive the field path" {
+  let input : Json = { "meta": { "id": 7 }, "other": 8 }
+  let model : HookModel = @json.from_json(input)
+  assert_eq(ToJson::to_json(model), input)
+  let missing : HookModel = @json.from_json({ "meta": { "id": 7 } })
+  assert_true(missing.other is None)
+  let path = try {
+    let _ : HookModel = @json.from_json({ "meta": { "id": "bad" } })
+    fail("expected a field error")
+  } catch {
+    @json.JsonDecodeError((path, _)) => path.to_string()
+    error => raise error
+  }
+  assert_eq(path, "/meta/id")
+}
+
+///|
+fn decode_at_label(
+  value : Json,
+  path : @json.JsonPath,
+) -> String raise @json.JsonDecodeError {
+  let text : String = @json.from_json(value, path~)
+  path.to_string() + ":" + text
+}
+
+///|
+#custom.serde(decode_only)
+priv struct ScalarPaths {
+  #custom.serde(rename="a/b~c")
+  text : String
+  active : Bool
+  #custom.serde(deserialize_with="decode_at_label")
+  label : String
+}
+
+///|
+test "scalar fast paths preserve errors and pass context to custom decoders" {
+  for active in [false, true] {
+    let value : ScalarPaths = @json.from_json({
+      "a/b~c": "text",
+      "active": active,
+      "label": "custom",
+    })
+    assert_eq(value.text, "text")
+    assert_eq(value.active, active)
+    assert_eq(value.label, "/label:custom")
+  }
+  let malformed : Array[(Json, String, String)] = [
+    ({ "a/b~c": 5 }, "/a~1b~0c", "String::from_json: expected string"),
+    (
+      { "a/b~c": "text", "active": "true" },
+      "/active",
+      "Bool::from_json: expected boolean",
+    ),
+  ]
+  for case_ in malformed {
+    let (input, path, message) = case_
+    let actual = try {
+      let _ : ScalarPaths = @json.from_json(input)
+      fail("expected a scalar decode error")
+    } catch {
+      @json.JsonDecodeError((path, message)) => (path.to_string(), message)
+      error => raise error
+    }
+    assert_eq(actual, (path, message))
+  }
+}
+
+///|
+test "flatten decodes remaining keys without mutating the input" {
+  let input : Json = { "oldId": 4, "meta": { "active": true }, "color": "blue" }
+  let model : FlattenedModel = @json.from_json(input)
+  assert_eq(model.extra, { "color": "blue" })
+  assert_eq(input, { "oldId": 4, "meta": { "active": true }, "color": "blue" })
+  assert_eq(ToJson::to_json(model), {
+    "id": 4,
+    "meta": { "active": true },
+    "color": "blue",
+  })
+}
+
+///|
+test "panic flatten does not overwrite a parent's canonical keys or aliases" {
+  ignore(
+    ToJson::to_json(FlattenedModel::{
+      extra: { "oldId": Json::null() },
+      identifier: 4,
+      active: true,
+    }),
+  )
+}

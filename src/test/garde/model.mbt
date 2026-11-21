@@ -122,3 +122,99 @@ pub(all) struct Request {
   #custom.garde(inner(dive_with))
   allocations : Array[Allocation]
 }
+
+///|
+#custom.serde
+#custom.garde
+pub(all) struct Confirmation {
+  #custom.serde(rename="repeatedCode")
+  #custom.garde(matches(code))
+  repeated : String?
+  #custom.garde(pattern("^ID-[0-9]+\\.$"))
+  code : String?
+}
+
+///|
+#custom.garde
+pub(all) struct Same[T] {
+  #custom.garde(matches(original))
+  repeated : T
+  #custom.garde(skip)
+  original : T
+}
+
+///|
+#custom.serde
+#custom.garde(validate_only)
+pub(all) struct ContactDetails {
+  #custom.garde(email)
+  email : String
+  #custom.garde(url)
+  website : String
+  #custom.garde(inner(ip))
+  addresses : Array[String]
+  #custom.garde(ipv4)
+  v4 : String?
+  #custom.garde(ipv6)
+  v6 : String?
+  #custom.garde(phone_number)
+  phone : String?
+}
+
+///|
+const MINIMUM_WIDE : Int64 = 9007199254740993L
+
+///|
+#custom.garde(transparent, field(index="0", pattern(is_uppercase_code)))
+pub(all) struct ProductCode(String)
+
+///|
+fn is_uppercase_code(value : String) -> Bool {
+  value.has_prefix("SKU-")
+}
+
+///|
+#custom.garde
+pub(all) struct OrderChecks {
+  #custom.garde(skip)
+  strict : Bool
+  #custom.garde(when(is_strict, required, dive))
+  product : ProductCode?
+  #custom.garde(range(min=MINIMUM_WIDE))
+  quantity : Int64
+  #custom.garde(range(min="0.5", max="2.5"))
+  multiplier : Double
+  #custom.garde(skip)
+  policy : Policy
+  #custom.garde(inner(dive_with(policy)))
+  allocations : Array[Allocation]
+}
+
+///|
+fn is_strict(value : OrderChecks) -> Bool {
+  value.strict
+}
+
+///|
+#custom.garde
+pub(all) struct NumericRanges {
+  #custom.garde(range(min="9007199254740993", max="9007199254740994"))
+  wide : Int64
+  #custom.garde(range(min="18446744073709551614", max="18446744073709551615"))
+  unsigned : UInt64
+  #custom.garde(range(equal="1000000000000000000000000000001N"))
+  huge : @bigint.BigInt
+  #custom.garde(range(min="1.00000002", max="1.00000001"))
+  single : Float
+  #custom.garde(range(min="-0.125F", max="2_000.0"))
+  double : Double
+  #custom.garde(range(min="0x10L", max="0x20"))
+  base16 : Int32
+}
+
+///|
+#custom.garde
+pub(all) struct ReversedRange {
+  #custom.garde(range(min="9007199254740993", max="9007199254740992"))
+  wide : Int64
+}

@@ -1,9 +1,47 @@
 ///|
 priv struct Settings {
   allow_unvalidated : Bool
+  transparent : Bool
+  codec : CodecMode
   context : String?
   bounds : Map[String, Array[String]]
   selectors : Map[String, Array[Rule]]
+}
+
+///|
+priv enum CodecMode {
+  Auto
+  Enabled
+  Disabled
+}
+
+///|
+fn render_quantifiers(
+  params : Array[String],
+  bounds : Map[String, Array[String]],
+  json_bounds~ : Array[String] = [],
+) -> String {
+  if params.is_empty() {
+    return ""
+  }
+  let generics = params.map(param => {
+    let traits = bounds[param].map(name => {
+      if name == "Validate" || name == "Length" {
+        "@garde.\{name}"
+      } else {
+        name
+      }
+    })
+    if json_bounds.contains(param) {
+      traits.push("ToJson")
+    }
+    if traits.is_empty() {
+      param
+    } else {
+      "\{param} : \{traits.join(" + ")}"
+    }
+  })
+  "[\{generics.join(", ")}]"
 }
 
 ///|
@@ -50,6 +88,8 @@ fn settings(
   variant~ : Bool = false,
 ) -> Settings raise GenerateError {
   let mut allow_unvalidated = false
+  let mut transparent = false
+  let mut codec = Auto
   let mut context = None
   let bounds = Map([])
   let selectors = Map([])
@@ -57,6 +97,12 @@ fn settings(
     match prop {
       Expr(Ident({ qual: None, name: "allow_unvalidated", })) if !allow_unvalidated =>
         allow_unvalidated = true
+      Expr(Ident({ qual: None, name: "transparent", })) if !variant &&
+        !transparent => transparent = true
+      Expr(Ident({ qual: None, name: "codec", })) if !variant && codec is Auto =>
+        codec = Enabled
+      Expr(Ident({ qual: None, name: "validate_only", })) if !variant &&
+        codec is Auto => codec = Disabled
       Labeled("context", Ident({ qual, name, })) if !variant && context is None =>
         context = Some(
           match qual {
@@ -80,17 +126,26 @@ fn settings(
           .to_array()
           .map(trait_ => {
             match trait_ {
-              Ident({ qual: None, name: "Validate" | "Length" as name, }) =>
-                name
+              Ident(
+                {
+                  qual: None,
+                  name: "Validate"
+                  | "Length"
+                  | "Eq"
+                  | "Compare"
+                  | "Show" as name,
+                },
+              ) => name
               _ =>
                 raise GenerateError(
-                  "\{at}: bounds supports Validate and Length",
+                  "\{at}: bounds supports Validate, Length, Eq, Compare, and Show",
                 )
             }
           })
-        if (traits.length() == 2 && traits[0] == traits[1]) ||
-          traits.length() > 2 {
-          fail(at, "repeated trait in bounds for \{param}")
+        for index, trait_ in traits {
+          if traits[:index].contains(trait_) {
+            fail(at, "repeated trait in bounds for \{param}")
+          }
         }
         bounds[param] = traits
       }
@@ -104,7 +159,7 @@ fn settings(
       _ => fail(at, "unknown, invalid, or repeated #custom.garde option")
     }
   }
-  { allow_unvalidated, context, bounds, selectors, }
+  { allow_unvalidated, transparent, codec, context, bounds, selectors, }
 }
 
 ///|
@@ -130,11 +185,12 @@ fn emit_field(
   emitter : Emitter,
   expr : String,
   path : String,
+  record~ : (String, @list.List[@syntax.FieldDecl])? = None,
 ) -> Unit raise GenerateError {
   if !rules.is_empty() {
     let p = emitter.prefix
     out.write_string("{\nlet \{p}value = \{expr}\nlet \{p}path = \{path}\n")
-    emit_rules(out, ty, rules, at, emitter)
+    emit_rules(out, ty, rules, at, emitter, record~)
     out.write_string("}\n")
   }
 }
@@ -144,9 +200,11 @@ fn record_body(
   fields : @list.List[@syntax.FieldDecl],
   opts : Settings,
   emitter : Emitter,
+  at : String,
 ) -> String raise GenerateError {
   let out = StringBuilder()
   let p = emitter.prefix
+  let mut validated = 0
   for field in fields {
     match options(field.attrs) {
       None if !opts.allow_unvalidated =>
@@ -157,17 +215,29 @@ fn record_body(
       None => ()
       Some((at, props)) => {
         let name = field.name.label
+        let rules = field_rules(props, at)
+        if !rules.is_empty() {
+          validated += 1
+        }
         emit_field(
           out,
           field.ty,
-          field_rules(props, at),
+          rules,
           at,
           emitter,
           "\{p}self.\{name}",
-          "\{p}path.field(\"\{name}\")",
+          if opts.transparent {
+            "\{p}path"
+          } else {
+            "\{p}path.field(\"\{name}\")"
+          },
+          record=Some((name, fields)),
         )
       }
     }
+  }
+  if opts.transparent && validated != 1 {
+    fail(at, "transparent requires exactly one validated field")
   }
   out.to_string()
 }
@@ -186,6 +256,7 @@ fn payload_arm(
   let body = StringBuilder()
   let patterns = []
   let used = Map([])
+  let mut validated = 0
   for index, slot in slots {
     let (key, path) = slot_path(slot.label, index)
     let bindings = match opts.selectors.get(key) {
@@ -194,7 +265,12 @@ fn payload_arm(
         if rules.is_empty() {
           "_"
         } else {
-          let binding = "\{p}item\{index}"
+          validated += 1
+          let binding = match slot.label {
+            Some(label) => "\{p}field_\{label}"
+            None if slots.length() == 1 => "\{p}inner"
+            None => "\{p}item_\{index}"
+          }
           let parent = if variant {
             "\{p}path.field(\"\{name}\")"
           } else {
@@ -207,7 +283,11 @@ fn payload_arm(
             at,
             emitter,
             binding,
-            "\{parent}.\{path}",
+            if opts.transparent {
+              parent
+            } else {
+              "\{parent}.\{path}"
+            },
           )
           binding
         }
@@ -229,6 +309,9 @@ fn payload_arm(
     if !used.contains(key) {
       fail(at, "no payload field for selector \{key} in \{name}")
     }
+  }
+  if opts.transparent && validated != 1 {
+    fail(at, "transparent requires exactly one validated field")
   }
   let body = body.to_string()
   if body.is_empty() {
@@ -338,6 +421,14 @@ fn emit_declaration(
     params,
     select_fields=decl.components is TupleStruct(_),
   )
+  if opts.codec is Enabled {
+    if !(decl.components is Record(..)) {
+      fail(at, "garde codec requires a record struct")
+    }
+    if opts.context is Some(_) {
+      fail(at, "garde codec does not support contextual validation")
+    }
+  }
   let bounds = Map([])
   for param in params {
     bounds[param] = opts.bounds.get(param).unwrap_or([])
@@ -349,7 +440,7 @@ fn emit_declaration(
     explicit_bounds: opts.bounds,
   }
   let body = match decl.components {
-    Record(fields~, ..) => record_body(fields, opts, emitter)
+    Record(fields~, ..) => record_body(fields, opts, emitter, at)
     TupleStruct(types) => {
       let slots : Array[Slot] = types.to_array().map(ty => { label: None, ty, })
       match payload_arm(decl.tycon, slots, opts, at, emitter, variant=false) {
@@ -357,25 +448,18 @@ fn emit_declaration(
         None => ""
       }
     }
-    Variant(variants) => enum_body(variants, opts, emitter)
+    Variant(variants) => {
+      if opts.transparent {
+        fail(at, "transparent is only supported on structs")
+      }
+      enum_body(variants, opts, emitter)
+    }
     _ =>
       raise GenerateError(
         "\{at}: #custom.garde supports record structs, tuple structs, and enums",
       )
   }
-  let generics = params.map(param => {
-    let traits = bounds[param]
-    if traits.is_empty() {
-      param
-    } else {
-      param + " : " + traits.map(name => "@garde.\{name}").join(" + ")
-    }
-  })
-  let quantifiers = if generics.is_empty() {
-    ""
-  } else {
-    "[\{generics.join(", ")}]"
-  }
+  let quantifiers = render_quantifiers(params, bounds)
   let name = decl.tycon
   let target = if params.is_empty() {
     name
@@ -389,10 +473,16 @@ fn emit_declaration(
     (p + "self", p + "report", p + "path")
   }
   match opts.context {
-    None =>
+    None => {
       out.write_string(
         "\{visibility}impl\{quantifiers} @garde.Validate for \{target} with fn collect(\{self}, \{report}, \{path}) {\n\{body}}\n",
       )
+      if !visibility.is_empty() {
+        out.write_string(
+          "pub extend \{name} with @garde.Validate::{validate}\n",
+        )
+      }
+    }
     Some(ctx) => {
       let context = if body.contains(p + "context") {
         p + "context"
@@ -404,6 +494,32 @@ fn emit_declaration(
       )
       out.write_string(
         "\{visibility}fn\{quantifiers} \{name}::validate_with(self : \{target}, context : \{ctx}) -> Result[Unit, @garde.Report] {\n@garde.validate_using(self, (value, report, path) => value.collect_with(context, report, path))\n}\n",
+      )
+    }
+  }
+  if decl.components is Record(fields~, ..) {
+    let json_bounds = if visibility.is_empty() {
+      None
+    } else {
+      @serde_codegen.record_to_json_bounds(decl) catch {
+        @serde_codegen.GenerateError(message) => raise GenerateError(message)
+      }
+    }
+    if json_bounds is Some(_) {
+      out.write_string("pub extend \{name} with ToJson::{to_json}\n")
+    }
+    if !(opts.codec is Disabled) && opts.context is None {
+      emit_conversion(
+        out,
+        decl,
+        fields,
+        visibility,
+        quantifiers,
+        json_bounds.map(json_bounds => {
+          render_quantifiers(params, bounds, json_bounds~)
+        }),
+        target,
+        p,
       )
     }
   }

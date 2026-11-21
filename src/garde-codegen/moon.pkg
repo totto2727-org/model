@@ -2,12 +2,14 @@ import {
   "moonbitlang/core/json",
   "moonbitlang/core/list",
   "moonbitlang/core/string",
+  "moonbitlang/lexer",
   "moonbitlang/parser",
   "moonbitlang/parser/attribute",
   "moonbitlang/parser/fmt",
   "moonbitlang/parser/syntax",
+  "totto2727/model/serde-codegen" @serde_codegen,
 }
 
 import {
-  "totto2727/serde/garde-codegen" @garde_codegen,
+  "totto2727/model/garde-codegen" @garde_codegen,
 } for "test"

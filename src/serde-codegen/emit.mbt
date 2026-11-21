@@ -78,8 +78,39 @@ fn json_call(name : String, args : Array[@syntax.Expr]) -> @syntax.Expr {
 }
 
 ///|
-fn field_local(index : Int32) -> String {
-  "f\{index}"
+fn positional_local(index : Int32, count : Int32) -> String {
+  if count == 1 {
+    "inner"
+  } else {
+    "item_\{index}"
+  }
+}
+
+///|
+fn field_locals(fields : Array[Field]) -> Array[String] {
+  let mut prefix = "field_"
+  // A local binding must not shadow an unqualified codec hook.
+  for field in fields {
+    for
+      hook in [
+        field.default_with,
+        field.serialize_with,
+        field.deserialize_with,
+        field.skip_serializing_if,
+      ] {
+      if hook is Some(Function(None, name)) {
+        while name.has_prefix(prefix) {
+          prefix += "_"
+        }
+      }
+    }
+  }
+  fields.mapi((i, field) => {
+    match field.label {
+      Some(label) => prefix + label
+      None => positional_local(i, fields.length())
+    }
+  })
 }
 
 ///|
@@ -134,12 +165,64 @@ fn missing(
   path : @syntax.Expr,
   key : @syntax.Expr,
 ) -> @syntax.Expr {
-  if field.optional {
+  if field.default_with is Some(hook) {
+    call(hook_expr(hook), [])
+  } else if field.optional {
     variant_expr("None", [])
-  } else if field.default || field.skip {
+  } else if field.default || field.skip || field.skip_deserializing {
     call(ast_method("Default", "default"), [])
   } else {
     serde_call("missing_field", [path, key])
+  }
+}
+
+///|
+fn hook_expr(hook : Hook) -> @syntax.Expr {
+  match hook {
+    Function(pkg, name) => ast_ident(name, pkg?)
+    Method(pkg, name, method_name) => ast_method(name, method_name, pkg?)
+  }
+}
+
+///|
+fn decode_field_value(
+  field : Field,
+  value : @syntax.Expr,
+  path : @syntax.Expr,
+) -> @syntax.Expr {
+  match field.deserialize_with {
+    Some(hook) => call(hook_expr(hook), [value, path])
+    None => decode_value(value, path, field.option_depth)
+  }
+}
+
+///|
+fn scalar_success_cases(
+  field : Field,
+) -> Array[(@syntax.Pattern, @syntax.Expr)] {
+  // Only direct, reserved builtin types without a user decoder can skip the context.
+  guard field.deserialize_with is None &&
+    field.ty is Name(constr_id={ id: Ident(name~), .. }, tys~, ..) &&
+    tys.is_empty() else {
+    return []
+  }
+  fn present(pat : @syntax.Pattern) -> @syntax.Pattern {
+    variant_pat("Some", [(None, pat)])
+  }
+  match name {
+    "String" =>
+      [
+        (
+          present(variant_pat("String", [(None, ast_bind("value"))])),
+          ast_ident("value"),
+        ),
+      ]
+    "Bool" =>
+      [true, false].map(flag => {
+        let pat = present(variant_pat(if flag { "True" } else { "False" }, []))
+        (pat, @syntax.Expr::Constant(c=Bool(flag), loc=@syntax.no_location))
+      })
+    _ => []
   }
 }
 
@@ -149,11 +232,15 @@ fn decode_field(field : Field) -> @syntax.Expr {
   let value = ast_ident("value")
   let some = variant_pat("Some", [(None, ast_bind("value"))])
   let none = variant_pat("None", [])
-  if field.skip {
+  if field.flatten {
+    decode_value(ast_ident("remaining"), ast_ident("path"), 0)
+  } else if field.skip || field.skip_deserializing {
     missing(field, field_path, ast_string(field.wire_name))
   } else if !field.path.is_empty() {
     let at = ast_ident("at")
-    let missing_parts = if field.optional || field.default {
+    let missing_parts = if field.optional ||
+      field.default ||
+      field.default_with is Some(_) {
       [none, ast_any(), ast_any()]
     } else {
       [none, ast_bind("at"), ast_bind("key")]
@@ -167,24 +254,28 @@ fn decode_field(field : Field) -> @syntax.Expr {
       [
         (
           ast_tuple_pat([some, ast_bind("at"), ast_any()]),
-          decode_value(value, at, field.option_depth),
+          decode_field_value(field, value, at),
         ),
         (ast_tuple_pat(missing_parts), missing(field, at, ast_ident("key"))),
       ],
     )
   } else {
-    match_expr(
+    let obj = ast_ident("obj")
+    let key = ast_string(field.wire_name)
+    let lookup = if field.aliases.is_empty() {
+      dot_call(obj, "get", [key])
+    } else {
       serde_call("field", [
-        ast_ident("obj"),
-        ast_string(field.wire_name),
+        obj,
+        key,
         string_array(field.aliases),
         ast_ident("path"),
-      ]),
-      [
-        (some, decode_value(value, field_path, field.option_depth)),
-        (none, missing(field, field_path, ast_string(field.wire_name))),
-      ],
-    )
+      ])
+    }
+    let cases = scalar_success_cases(field)
+    cases.push((some, decode_field_value(field, value, field_path)))
+    cases.push((none, missing(field, field_path, key)))
+    match_expr(lookup, cases)
   }
 }
 
@@ -192,6 +283,9 @@ fn decode_field(field : Field) -> @syntax.Expr {
 fn deny_unknown(fields : Array[Field]) -> @syntax.Expr {
   let allowed : Array[Array[String]] = []
   for field in fields {
+    if field.skip_deserializing {
+      continue
+    }
     allowed.push(
       if field.path.is_empty() {
         [field.wire_name]
@@ -203,7 +297,7 @@ fn deny_unknown(fields : Array[Field]) -> @syntax.Expr {
       allowed.push([alternate])
     }
   }
-  if fields.all(field => field.path.is_empty()) {
+  if allowed.all(keys => keys.length() == 1) {
     serde_call("deny_unknown", [
       ast_ident("obj"),
       string_array(allowed.map(keys => keys[0])),
@@ -219,23 +313,50 @@ fn deny_unknown(fields : Array[Field]) -> @syntax.Expr {
 }
 
 ///|
+fn direct_keys(fields : Array[Field], decode~ : Bool) -> @syntax.Expr {
+  let keys = []
+  for field in fields {
+    if !field.flatten &&
+      !(if decode { field.skip_deserializing } else { field.skip_serializing }) {
+      keys.push(
+        if field.path.is_empty() {
+          field.wire_name
+        } else {
+          field.path[0]
+        },
+      )
+      for alternate in field.aliases {
+        keys.push(alternate)
+      }
+    }
+  }
+  string_array(keys)
+}
+
+///|
 fn decode_fields(
   fields : Array[Field],
   deny : Bool,
   result : @syntax.Expr,
 ) -> @syntax.Expr {
+  let locals = field_locals(fields)
   let mut body = result
   for i = fields.length() - 1; i >= 0; i = i - 1 {
     let field = fields[i]
-    body = ast_let(
-      ast_bind(field_local(i)),
-      decode_field(field),
-      body,
-      ty=field.ty,
-    )
+    body = ast_let(ast_bind(locals[i]), decode_field(field), body, ty=field.ty)
   }
   if deny {
     body = ast_seq([deny_unknown(fields)], body)
+  }
+  if fields.any(field => field.flatten) {
+    body = ast_let(
+      ast_bind("remaining"),
+      serde_call("flattened_remainder", [
+        ast_ident("obj"),
+        direct_keys(fields, decode=true),
+      ]),
+      body,
+    )
   }
   ast_let(
     ast_bind("obj"),
@@ -247,18 +368,28 @@ fn decode_fields(
 ///|
 fn encode_fields(fields : Array[Field], record : Bool) -> Array[@syntax.Expr] {
   let writes = []
+  let locals = if record { [] } else { field_locals(fields) }
   let obj = ast_ident("obj")
   for i, field in fields {
-    if field.skip {
+    if field.skip || field.skip_serializing {
       continue
     }
     let value = if record {
       ast_field(ast_ident("self"), field.name)
     } else {
-      ast_ident(field_local(i))
+      ast_ident(locals[i])
     }
-    let encoded = encode_value(value, field.option_depth)
-    let write = if field.path.is_empty() {
+    let encoded = match field.serialize_with {
+      Some(hook) => call(hook_expr(hook), [value])
+      None => encode_value(value, field.option_depth)
+    }
+    let write = if field.flatten {
+      serde_call("write_flattened", [
+        obj,
+        encoded,
+        direct_keys(fields, decode=false),
+      ])
+    } else if field.path.is_empty() {
       dot_call(obj, "set", [ast_string(field.wire_name), encoded])
     } else {
       serde_call("write_path", [obj, string_array(field.path), encoded])
@@ -266,6 +397,16 @@ fn encode_fields(fields : Array[Field], record : Bool) -> Array[@syntax.Expr] {
     writes.push(
       if field.omit_none {
         ast_if(ast_is(value, variant_pat("Some", [(None, ast_any())])), write)
+      } else if field.skip_serializing_if is Some(hook) {
+        let predicate = call(hook_expr(hook), [value])
+        ast_if(
+          ast_infix(
+            "==",
+            predicate,
+            Constant(c=Bool(false), loc=@syntax.no_location),
+          ),
+          write,
+        )
       } else {
         write
       },
@@ -344,14 +485,40 @@ fn field_quantifiers(
   let types = []
   let defaults = []
   for field in fields {
-    if !field.skip {
+    if !field.skip &&
+      !(if decode { field.skip_deserializing } else { field.skip_serializing }) &&
+      (if decode { field.deserialize_with } else { field.serialize_with })
+      is None {
       types.push(field.ty)
     }
-    if decode && !field.optional && (field.skip || field.default) {
+    if decode &&
+      !field.optional &&
+      field.default_with is None &&
+      (field.skip || field.skip_deserializing || field.default) {
       defaults.push(field.ty)
     }
   }
   codec_quantifiers(params, types, defaults~, decode~)
+}
+
+///|
+/// Return the parameters that require `ToJson` for Serde to encode this record.
+/// Return `None` when Serde does not emit an encoder.
+pub fn record_to_json_bounds(
+  decl : @syntax.TypeDecl,
+) -> Array[String]? raise GenerateError {
+  guard parse_definition(decl) is Some(Record(record)) && !record.decode_only else {
+    return None
+  }
+  Some(
+    field_quantifiers(record.params, record.fields, decode=false).filter_map(param => {
+      if param.constraints.is_empty() {
+        None
+      } else {
+        Some(param.name)
+      }
+    }),
+  )
 }
 
 ///|
@@ -412,8 +579,9 @@ fn emit_record(out : Array[@syntax.Impl], record : RecordDef) -> Unit {
   if record.encode_only {
     return
   }
+  let locals = field_locals(record.fields)
   let result = ast_record(
-    record.fields.mapi((i, field) => (field.name, ast_ident(field_local(i)))),
+    record.fields.mapi((i, field) => (field.name, ast_ident(locals[i]))),
   )
   let body = decode_fields(record.fields, record.deny_unknown_fields, result)
   let bounds = field_quantifiers(record.params, record.fields, decode=true)
@@ -429,24 +597,26 @@ fn named(variant : Variant) -> Bool {
 
 ///|
 fn constructor_expr(variant : Variant) -> @syntax.Expr {
+  let locals = field_locals(variant.fields)
   variant_expr(
     variant.name,
-    variant.fields.mapi((i, field) => (field.label, ast_ident(field_local(i)))),
+    variant.fields.mapi((i, field) => (field.label, ast_ident(locals[i]))),
   )
 }
 
 ///|
 fn constructor_pattern(variant : Variant) -> @syntax.Pattern {
+  let locals = field_locals(variant.fields)
   variant_pat(
     variant.name,
-    variant.fields.mapi((i, field) => (field.label, ast_bind(field_local(i)))),
+    variant.fields.mapi((i, field) => (field.label, ast_bind(locals[i]))),
   )
 }
 
 ///|
 fn encode_positional(depths : Array[Int32]) -> @syntax.Expr {
   let values = depths.mapi((i, depth) => {
-    encode_value(ast_ident(field_local(i)), depth)
+    encode_value(ast_ident(positional_local(i, depths.length())), depth)
   })
   if values is [single] {
     single
@@ -463,7 +633,7 @@ fn decode_positional(
   let value = ast_ident("value")
   let path = ast_ident("path")
   if fields is [(ty, depth)] {
-    ast_let(ast_bind("f0"), decode_value(value, path, depth), result, ty~)
+    ast_let(ast_bind("inner"), decode_value(value, path, depth), result, ty~)
   } else {
     let mut body = result
     for i = fields.length() - 1; i >= 0; i = i - 1 {
@@ -472,7 +642,7 @@ fn decode_positional(
       let item = ast_index(ast_ident("values"), offset)
       let at = dot_call(path, "add_index", [offset])
       body = ast_let(
-        ast_bind(field_local(i)),
+        ast_bind(positional_local(i, fields.length())),
         decode_value(item, at, depth),
         body,
         ty~,
@@ -492,7 +662,9 @@ fn emit_tuple(out : Array[@syntax.Impl], tuple : TupleDef) -> Unit {
   if !tuple.decode_only {
     let pattern = variant_pat(
       tuple.name,
-      fields.mapi((i, _) => (None, ast_bind(field_local(i)))),
+      fields.mapi((i, _) => {
+        (None, ast_bind(positional_local(i, fields.length())))
+      }),
     )
     let payload = encode_positional(fields.map(field => field.1))
     let body = match_expr(ast_ident("self"), [(pattern, payload)])
@@ -506,7 +678,9 @@ fn emit_tuple(out : Array[@syntax.Impl], tuple : TupleDef) -> Unit {
   }
   let result = variant_expr(
     tuple.name,
-    fields.mapi((i, _) => (None, ast_ident(field_local(i)))),
+    fields.mapi((i, _) => {
+      (None, ast_ident(positional_local(i, fields.length())))
+    }),
   )
   out.push(
     decode_impl(
@@ -783,7 +957,7 @@ fn emit_enum_decode(out : Array[@syntax.Impl], sum : EnumDef) -> Unit {
 
 ///|
 /// Marker for source files owned by the generator.
-pub const GENERATED_HEADER = "// Generated by totto2727/serde. Do not edit."
+pub const GENERATED_HEADER = "// Generated by totto2727/model. Do not edit."
 
 ///|
 /// Emit standard ToJson and FromJson implementations. The caller imports @serde and @json in the generated package.
