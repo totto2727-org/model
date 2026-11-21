@@ -4,7 +4,7 @@
 
 These are mean times per operation from one `moon bench` run on 2026-11-21, with 10 samples per case.
 The run used the native release build on an Apple M1 Pro (arm64, macOS 27.2) with Moon `0.1.20261117` (`eb64713`) and `moonc` `v0.10.21+06da1ed44`.
-Model `0.1.0` came from [commit `1512774`](https://github.com/totto2727-org/model/commit/15127745f2db2935db0e7e6c9f034c521532b617).
+Model `0.1.0` came from [commit `f03fc07`](https://github.com/totto2727-org/model/commit/f03fc07bda6ea3e1d178356512f367c47a17ca6e).
 The comparison used Lens `0.4.4`, Community Serde `0.3.1`, and MoonModel `0.2.1`.
 See [Run the comparison](#run-the-comparison) for the command and the sections below for the fixtures.
 
@@ -12,28 +12,36 @@ See [Run the comparison](#run-the-comparison) for the command and the sections b
 
 | Method | Core `Json` to model, no parsing | JSON text to model, parsing included |
 | --- | ---: | ---: |
-| Pattern matching | 319.31 ns | 6.65 µs |
-| Lens, paths built per call | 2.63 µs | 9.04 µs |
-| Lens, prebuilt paths | 499.90 ns | 6.84 µs |
-| Model Serde | 441.18 ns | 6.78 µs |
-| Community Serde | Not measured | 3.65 µs |
+| Pattern matching | 317.67 ns | 6.72 µs |
+| Lens, paths built per call | 2.63 µs | 8.95 µs |
+| Lens, prebuilt paths | 491.23 ns | 6.78 µs |
+| Model Serde | 430.58 ns | 6.76 µs |
+| Community Serde | No core `Json` API | 3.62 µs |
 
 ### JSON encoding
 
 | Method | Model to core `Json`, no stringification | Model to JSON text, stringification included |
 | --- | ---: | ---: |
-| Hand-written encoder | 992.57 ns | 2.27 µs |
-| Model Serde | 770.48 ns | 2.04 µs |
-| Community Serde | Not measured | 1.16 µs |
+| Hand-written encoder | 997.85 ns | 2.26 µs |
+| Model Serde | 761.73 ns | 2.22 µs |
+| Community Serde | No core `Json` API | 1.32 µs |
 
-Community Serde reads and writes JSON text directly. Its generic value type is not core `Json`, so it has no result in the core `Json` columns.
+### Community Serde in-memory conversion
+
+Community Serde's JSON API reads and writes JSON text directly. Its in-memory [`Value` API](https://github.com/moonbit-community/serde.mbt/blob/0675e0435c35c1b645e5c110936c47c04e981cfe/data.mbt#L26-L36) uses a different representation from core `Json`.
+The benchmark parses the full fixture into a `Value` before timing `from_value`. The `to_value` benchmark starts with the typed model and returns a `Value` without writing text.
+
+| Operation | Mean time | Sample range |
+| --- | ---: | ---: |
+| `from_value`: Community `Value` to typed model | 2.59 µs | 2.56 to 2.61 µs |
+| `to_value`: Typed model to Community `Value` | 1.55 µs | 1.53 to 1.56 µs |
 
 ### Validation
 
 | Method | Validation only, no parsing or model conversion | JSON text to validated model, parsing included |
 | --- | ---: | ---: |
-| Garde | 409.47 ns | 1.86 µs |
-| MoonModel | 13.46 µs | 14.98 µs |
+| Garde | 413.02 ns | 1.88 µs |
+| MoonModel | 14.06 µs | 15.24 µs |
 
 The validation-only cases start from different inputs: Garde validates a typed model, and MoonModel validates a core `Json` value.
 The JSON text cases start from the same string and return the same typed model.
