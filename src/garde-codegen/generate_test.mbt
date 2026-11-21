@@ -115,8 +115,7 @@ test "reject invalid payload selectors and unattached enum attributes" {
         "enum E {\n  #model.garde(skip)\n  Item(String)\n}", "variant #model.garde requires #model.garde on its enum",
       ),
       (
-        "#model.garde(bounds(U, [Length]), allow_unvalidated)\nstruct S[T](T)",
-        "unknown or repeated type parameter in bounds: U",
+        "#model.garde(bounds(U, [Length]), allow_unvalidated)\nstruct S[T](T)", "unknown or repeated type parameter in bounds: U",
       ),
     ] {
     let result = Ok(@garde_codegen.generate_many([("payloads.mbt", source)])) catch {

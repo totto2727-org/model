@@ -203,8 +203,7 @@ test "invalid serde options fail instead of producing codecs" {
         "#model.serde(tag = \"kind\")\nenum E { V(Int) }", "require decode_only and one non-optional payload",
       ),
       (
-        "#model.serde(tag = \"kind\", decode_only)\nenum E { V(Int, String) }",
-        "require decode_only and one non-optional payload",
+        "#model.serde(tag = \"kind\", decode_only)\nenum E { V(Int, String) }", "require decode_only and one non-optional payload",
       ),
       (
         "#model.serde(tag = \"kind\", decode_only)\nenum E { V(Int?) }", "require decode_only and one non-optional payload",
