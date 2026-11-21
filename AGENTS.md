@@ -6,7 +6,7 @@ The Nix and CI setup comes from [template-moonbit-simple](https://github.com/tot
 The Nix shell puts the packaged native generator on `PATH` for fixture generation and the CLI tests.
 The module defaults to native so the shared `moon test` runs the CLI tests too.
 
-Keep the template's CI triggers and shared action references unless a project requirement calls for a change. Keep publication disabled until explicitly enabled for this project. Do not replace a template publication trigger on pushes to `main` with a tag or release trigger.
+Keep the template's CI triggers and shared action references unless a project requirement calls for a change. The Mooncakes workflow publishes the root Model module on pushes to `main`. It does not publish the separate `serde-gen` module. Do not replace the main-push trigger with a tag or release trigger.
 
 ## Package layout
 
@@ -27,7 +27,9 @@ moon test
 moon test --target js
 ```
 
-To build the CLI from source, put the Serde library and `src/cmd/serde-gen` in a Moon workspace. Moon fetches Admiral from Mooncakes. From the workspace root, run `moon build --target wasm --release ./src/cmd/serde-gen` for linear Wasm or `moon build --target js --release ./src/cmd/serde-gen` for Node.js. These commands assume the workspace root is the Serde checkout. The Nix package remains native.
+To build the CLI from source, create a Moon workspace that contains the Model library and `src/cmd/serde-gen`. Moon fetches Admiral from Mooncakes.
+From the Model checkout, run `moon build --target wasm --release ./src/cmd/serde-gen` for linear Wasm or `moon build --target js --release ./src/cmd/serde-gen` for Node.js.
+The Nix package remains native.
 
 After changing a generator, re-enter the Nix shell to use the rebuilt executable.
 Regenerate and format the integration fixtures after changing a generator or an annotated model:

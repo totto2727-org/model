@@ -11,10 +11,10 @@ MoonBit Garde validates typed values independently of JSON and can generate a se
 | Rust Serde | [`1.0.229`](https://docs.rs/serde/1.0.229/serde/), tag `v1.0.229` | [`7fc3b4c30c94f73a96ebd1553f2b090d928fc3a8`](https://github.com/serde-rs/serde/tree/7fc3b4c30c94f73a96ebd1553f2b090d928fc3a8) |
 | Rust Serde manual | `serde.rs` documentation snapshot | [`c4a897bc01fb358075ddd1f6235ed54081e88b84`](https://github.com/serde-rs/serde-rs.github.io/tree/c4a897bc01fb358075ddd1f6235ed54081e88b84) |
 | Rust garde | [`0.23.0`](https://docs.rs/garde/0.23.0/garde/), tag `v0.23.0` | [`62b71b12102bfcef0041672ef9b7d6b0d5b74369`](https://github.com/jprochazk/garde/tree/62b71b12102bfcef0041672ef9b7d6b0d5b74369) |
-| MoonBit Serde and Garde | `0.1.0`, then named `totto2727/serde` | [`e652d471c4de9e5eab10c5f35ac61597c7d354e7`](https://github.com/totto2727-org/model/tree/e652d471c4de9e5eab10c5f35ac61597c7d354e7) |
+| MoonBit Model (`totto2727/model`) | `0.1.0` | [`578386964342f57a3247804e9cb3e54041747256`](https://github.com/totto2727-org/model/tree/578386964342f57a3247804e9cb3e54041747256) |
 
 The MoonBit row identifies a source snapshot, not the contents of a published Mooncakes archive with the same version.
-The module is now named `totto2727/model` in [`moon.mod`](../moon.mod), with separate `serde` and `garde` packages.
+The Model module contains the `serde` and `garde` packages.
 This is a feature comparison based on upstream docs, local code, and local tests, not a cross-language conformance test.
 It does not inventory format crates such as `serde_json`, third-party integrations, or every built-in Rust type implementation.
 

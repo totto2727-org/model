@@ -73,7 +73,7 @@ Add the `bin` directory of your Nix profile to `PATH` if your shell cannot find 
 
 ### Nix flake
 
-Use the Serde overlay to add `serde-gen` to your development shell.
+Use the Model overlay to add `serde-gen` to your development shell.
 Set `system` to `aarch64-darwin` or `x86_64-linux`.
 
 ```nix
@@ -120,12 +120,6 @@ serde-gen --package src/models
 
 One invocation discovers both `#custom.serde` and `#custom.garde` and writes all generated code to `serde.generated.mbt`.
 Import `totto2727/model/garde` only if the package uses Garde attributes.
-
-### Migrate from `totto2727/serde`
-
-Replace the module dependency with `totto2727/model`, then switch the old runtime import to `totto2727/model/serde` and the old Garde import to `totto2727/model/garde`.
-The `@serde` and `@garde` aliases, attributes, and `serde-gen` command are unchanged.
-Remove the old generated `serde.generated.mbt` files, then re-run `serde-gen` after updating the imports.
 
 ## API
 

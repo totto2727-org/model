@@ -25,7 +25,7 @@ Follow the [Model setup](https://github.com/totto2727-org/model#setup) and impor
 ## API
 
 Do not derive the same traits on an annotated type.
-Serde supports only JSON and does not support custom codec hooks or flattening.
+Serde generates code for MoonBit's `Json` type. See [flatten](#flatten-expand-a-child-object-into-its-parent) and [codec hooks](#codec-use-a-pair-of-conversion-functions) for field-level customization.
 
 Each section shows a minimal annotated model, the generated MoonBit code or the relevant excerpt, and behavior that is not visible from the code alone.
 The examples use the standard MoonBit formatting.
