@@ -8,8 +8,9 @@ test "Serde and Garde decode and encode the same wire model" {
     "metadata": 42,
   }
   let wire : @models.Endpoint[Int32] = @json.from_json(input)
-  let codec = @models.Endpoint::codec()
-  guard @garde_api.decode(wire, codec) is Ok(domain) else {
+  assert_true(wire.validate() is Ok(_))
+  assert_eq(wire.to_json(), input)
+  guard wire.to_decoded() is Ok(domain) else {
     fail("valid wire model was rejected")
   }
   let domain : @models.EndpointDecoded[Int32] = domain
@@ -27,7 +28,7 @@ test "Serde and Garde decode and encode the same wire model" {
   assert_eq(phone.national_number, "9012345678")
   assert_eq(phone.extension, "42")
   assert_eq(domain.metadata, 42)
-  guard @garde_api.encode(domain, codec) is Ok(encoded) else {
+  guard domain.to_encoded() is Ok(encoded) else {
     fail("valid domain model was rejected")
   }
   let output : Json = {
@@ -37,7 +38,9 @@ test "Serde and Garde decode and encode the same wire model" {
     "name": "docs",
     "metadata": 42,
   }
-  assert_eq(ToJson::to_json(encoded), output)
+  assert_eq(encoded.to_json(), output)
+  guard domain.to_json() is Ok(json) else { fail("expected JSON") }
+  assert_eq(json, output)
 }
 
 ///|
@@ -49,8 +52,7 @@ test "Garde decode validates all wire fields and preserves absent optional value
     name: "",
     metadata: 1,
   }
-  let codec = @models.Endpoint::codec()
-  guard @garde_api.decode(invalid, codec) is Err(report) else {
+  guard invalid.to_decoded() is Err(report) else {
     fail("invalid wire model was accepted")
   }
   assert_eq(report.violations().map(v => Show::to_string(v.path)), [
@@ -63,12 +65,12 @@ test "Garde decode validates all wire fields and preserves absent optional value
     phone: None,
     name: "docs",
   }
-  guard @garde_api.decode(wire, codec) is Ok(domain) else {
+  guard wire.to_decoded() is Ok(domain) else {
     fail("missing optional IP was rejected")
   }
   assert_true(domain.allowed_ip is None)
   assert_true(domain.phone is None)
-  guard @garde_api.encode(domain, codec) is Ok(encoded) else {
+  guard domain.to_encoded() is Ok(encoded) else {
     fail("valid model with missing optional fields was rejected")
   }
   assert_true(encoded.allowed_ip is None)
@@ -80,32 +82,50 @@ test "Garde encode validates the converted wire model" {
   guard @garde_api.parse_url("https://example.org/") is Some(url) else {
     fail("expected a parsed URL")
   }
-  let domain : @models.EndpointDecoded[Int32] = {
-    url,
-    allowed_ip: @garde_api.parse_ip("::1"),
-    phone: Some(@garde_api.PhoneNumber::new(81, "1")),
-    name: "",
-    metadata: 1,
-  }
-  guard @garde_api.encode(domain, @models.Endpoint::codec()) is Err(report) else {
+  let domain = @models.EndpointDecoded(
+    url~,
+    metadata=1,
+    allowed_ip=@garde_api.parse_ip("::1"),
+    phone=Some(@garde_api.PhoneNumber::new(81, "1")),
+    name="",
+  )
+  guard domain.to_encoded() is Err(report) else {
     fail("invalid domain model was accepted")
   }
   assert_eq(report.violations().map(v => Show::to_string(v.path)), [
     "allowed_ip", "phone", "name",
   ])
+  assert_true(domain.to_json() is Err(_))
 }
 
 ///|
-test "default codec preserves fields without a format conversion" {
+test "default conversion preserves fields without a format conversion" {
   let wire : @models.Address = { code: "JP", }
-  let codec = @models.Address::codec()
-  guard @garde_api.decode(wire, codec) is Ok(decoded) else {
+  guard wire.to_decoded() is Ok(decoded) else {
     fail("expected a decoded address")
   }
   let decoded : @models.AddressDecoded = decoded
   assert_eq(decoded.code, "JP")
-  guard @garde_api.encode(decoded, codec) is Ok(encoded) else {
+  guard @models.AddressDecoded(decoded.code).to_encoded() is Ok(encoded) else {
     fail("expected an encoded address")
   }
   assert_eq(encoded.code, "JP")
+}
+
+///|
+#derive(Eq)
+priv struct NonJsonValue {
+  number : Int32
+}
+
+///|
+test "decoded serialization needs only the constraints used by each generator" {
+  let comparable : NonJsonValue = { number: 1, }
+  let decoded = @models.TaggedDecoded(
+    tag="docs",
+    repeated=comparable,
+    original=comparable,
+  )
+  guard decoded.to_json() is Ok(json) else { fail("expected JSON") }
+  assert_eq(json, { "tag": "docs" })
 }

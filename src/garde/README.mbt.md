@@ -26,25 +26,22 @@ Put this test in `src/models/endpoint_wbtest.mbt`.
 test "round-trip an endpoint with Garde" {
   let input : Json = { "endpointUrl": "https://EXAMPLE.org:443/docs" }
   let wire : Endpoint = @json.from_json(input)
-  guard @garde.validate(wire) is Ok(_) else { fail("invalid endpoint") }
-  let codec = Endpoint::codec()
-  guard @garde.decode(wire, codec) is Ok(decoded) else {
+  guard wire.validate() is Ok(_) else { fail("invalid endpoint") }
+  guard wire.to_decoded() is Ok(decoded) else {
     fail("could not decode endpoint")
   }
-  guard @garde.encode(decoded, codec) is Ok(encoded) else {
+  guard decoded.to_encoded() is Ok(encoded) else {
     fail("could not encode endpoint")
   }
-  assert_eq(ToJson::to_json(encoded), {
-    "endpointUrl": "https://example.org/docs",
-  })
+  assert_eq(encoded.to_json(), { "endpointUrl": "https://example.org/docs" })
 }
 ```
 
 `@json.from_json` reads the wire model with the generated Serde implementation.
-`@garde.validate` checks the model without converting it.
-`@garde.decode` also validates, so omit the separate validation call if you only need the typed model.
-`@garde.encode` converts the typed model back to `Endpoint` and validates it.
-The URL formatter normalizes the host and removes the default port before `ToJson::to_json` writes the final JSON value.
+`wire.validate()` checks the model without converting it.
+`wire.to_decoded()` also validates, so omit the separate validation call if you only need the typed model.
+`decoded.to_encoded()` converts the typed model back to `Endpoint` and validates it.
+The URL formatter normalizes the host and removes the default port before `encoded.to_json()` writes the final JSON value.
 
 ## Key features
 
@@ -65,54 +62,42 @@ For the JSON example above, also import `moonbitlang/core/json` and `totto2727/s
 
 ## Typed model conversion
 
-On a record without a validation context, `#custom.garde` generates `Validate`, a second record named `ModelDecoded`, and the codec for `decode` and `encode`.
-Use `#custom.garde(validate_only)` to generate validation without the decoded type or codec.
-For a private record used only for validation, this also avoids unused-code warnings from the generated codec.
+On a record without a validation context, `#custom.garde` generates `Validate`, a second record named `ModelDecoded`, and methods to convert between the two records.
+Use `#custom.garde(validate_only)` to generate validation without the decoded type or conversion methods.
+For a private record used only for validation, this also avoids unused-code warnings from the generated methods.
 Records with a validation context, tuple structs, and enums generate validation only.
 Keep `#custom.serde` on the original record so that Serde reads and writes its wire representation.
 
-For the `Endpoint` model in [Usage](#usage), the generator keeps the `Validate` implementation and adds this type and these trait implementations:
+For the `Endpoint` model in [Usage](#usage), Garde generates a public type that callers cannot construct with a record literal outside the model package.
+Use its constructor to build a decoded record from typed fields without going through JSON or the wire model:
 
 ```mbt nocheck
 ///|
-pub(all) struct EndpointDecoded {
+pub struct EndpointDecoded {
   url : @garde.Url
 }
 
 ///|
-pub impl @garde.Decode for Endpoint
-
-///|
-pub impl @garde.Encode for EndpointDecoded
-```
-
-The generated `Endpoint::codec()` pairs the URL conversions:
-
-```mbt nocheck
-///|
-pub fn Endpoint::codec() -> @garde.Codec[Endpoint, EndpointDecoded] {
-  @garde.Codec::new(
-    fn(garde_value) {
-      guard @garde.parse_url(garde_value.url) is Some(garde_decoded_url) else {
-        return Err(
-          @garde.conversion_failure("url", "could not convert validated value"),
-        )
-      }
-      Ok(EndpointDecoded::{ url: garde_decoded_url, })
-    },
-    fn(garde_value) { Endpoint::{ url: garde_value.url.encode(), } },
-  )
+pub fn EndpointDecoded::EndpointDecoded(url : @garde.Url) -> EndpointDecoded {
+  { url, }
 }
 ```
 
-`decode` runs the original record validator before converting fields.
-`encode` converts back to the original record and validates the result, so edits or normalization can cause validation to fail.
+For records with two or more fields, pass all constructor arguments by label.
+The constructor assembles the typed fields without running the wire validator.
+`to_decoded()` runs the original record validator before converting fields.
+`to_encoded()` converts back to the original record and validates the result, so edits or normalization can cause validation to fail.
 The original record is the encoded type; there is no separate `EndpointEncoded` type.
-Use `@garde.validate` on it if you need validation without conversion.
+Use `validate()` on it if you need validation without conversion.
 
-The codec argument identifies the pair at compile time because MoonBit traits cannot associate a different return type with each implementation.
-These functions do not accept or produce `Json`.
-Use Serde's `@json.from_json` before `decode` and `ToJson::to_json` after `encode`.
+When Serde generates a JSON encoder, both records expose `to_json()`.
+The original record returns `Json` without validation, just like calling `ToJson::to_json` directly.
+The decoded record returns `Result[Json, @garde.Report]` because it calls `to_encoded()` before serialization.
+Neither conversion method requires a codec object or initialization.
+
+Use Garde for constraints that the serialized data itself can satisfy and for conversion to stricter types.
+Pass the decoded record to domain code for checks that depend on application state, configuration, or other external data.
+Use Serde's `decode_only` to make a JSON input-only model without opting out of Garde's decoded type.
 
 A direct `url` rule converts a `String` to MoonBit Stack's `Url`, re-exported as `@garde.Url`.
 A direct `ip`, `ipv4`, or `ipv6` rule converts a `String` to MoonBit Stack's `Addr`, re-exported as `@garde.Addr`.
@@ -123,11 +108,11 @@ Other fields keep their original types, including nested fields validated with `
 Garde generates `ModelDecoded` even when no field changes type.
 These formatters can normalize the spelling, so encoding does not guarantee the exact original text.
 A successful decode parses these fields once to validate them and once to construct their typed values.
-For other typed conversions, implement `Decode` and `Encode` for your two models and build the pair with `Codec::new`.
+For custom typed conversions, use `validate_only` and write conversion methods for your models.
 
 ## API
 
-Call `@garde.validate(value)` for a model that implements `Validate`.
+Call `value.validate()` for a public model with a generated validator, or `@garde.validate(value)` for any model that implements `Validate`.
 For a model with a validation context, call `value.validate_with(context)` instead.
 Use `report.violations()` to read violations and `issue.path.segments()` to read their typed `Field` and `Index` segments.
 The report uses MoonBit field names, not JSON keys set by Serde.

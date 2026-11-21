@@ -16,6 +16,35 @@ priv enum CodecMode {
 }
 
 ///|
+fn render_quantifiers(
+  params : Array[String],
+  bounds : Map[String, Array[String]],
+  json_bounds~ : Array[String] = [],
+) -> String {
+  if params.is_empty() {
+    return ""
+  }
+  let generics = params.map(param => {
+    let traits = bounds[param].map(name => {
+      if name == "Validate" || name == "Length" {
+        "@garde.\{name}"
+      } else {
+        name
+      }
+    })
+    if json_bounds.contains(param) {
+      traits.push("ToJson")
+    }
+    if traits.is_empty() {
+      param
+    } else {
+      "\{param} : \{traits.join(" + ")}"
+    }
+  })
+  "[\{generics.join(", ")}]"
+}
+
+///|
 fn field_rules(
   props : @list.List[@attribute.Prop],
   at : String,
@@ -430,29 +459,7 @@ fn emit_declaration(
         "\{at}: #custom.garde supports record structs, tuple structs, and enums",
       )
   }
-  let generics = params.map(param => {
-    let traits = bounds[param]
-    if traits.is_empty() {
-      param
-    } else {
-      param +
-      " : " +
-      traits
-      .map(name => {
-        if name == "Validate" || name == "Length" {
-          "@garde.\{name}"
-        } else {
-          name
-        }
-      })
-      .join(" + ")
-    }
-  })
-  let quantifiers = if generics.is_empty() {
-    ""
-  } else {
-    "[\{generics.join(", ")}]"
-  }
+  let quantifiers = render_quantifiers(params, bounds)
   let name = decl.tycon
   let target = if params.is_empty() {
     name
@@ -466,10 +473,16 @@ fn emit_declaration(
     (p + "self", p + "report", p + "path")
   }
   match opts.context {
-    None =>
+    None => {
       out.write_string(
         "\{visibility}impl\{quantifiers} @garde.Validate for \{target} with fn collect(\{self}, \{report}, \{path}) {\n\{body}}\n",
       )
+      if !visibility.is_empty() {
+        out.write_string(
+          "pub extend \{name} with @garde.Validate::{validate}\n",
+        )
+      }
+    }
     Some(ctx) => {
       let context = if body.contains(p + "context") {
         p + "context"
@@ -484,9 +497,30 @@ fn emit_declaration(
       )
     }
   }
-  if !(opts.codec is Disabled) &&
-    opts.context is None &&
-    decl.components is Record(fields~, ..) {
-    emit_codec(out, decl, fields, visibility, quantifiers, target, p)
+  if decl.components is Record(fields~, ..) {
+    let json_bounds = if visibility.is_empty() {
+      None
+    } else {
+      @serde_codegen.record_to_json_bounds(decl) catch {
+        @serde_codegen.GenerateError(message) => raise GenerateError(message)
+      }
+    }
+    if json_bounds is Some(_) {
+      out.write_string("pub extend \{name} with ToJson::{to_json}\n")
+    }
+    if !(opts.codec is Disabled) && opts.context is None {
+      emit_conversion(
+        out,
+        decl,
+        fields,
+        visibility,
+        quantifiers,
+        json_bounds.map(json_bounds => {
+          render_quantifiers(params, bounds, json_bounds~)
+        }),
+        target,
+        p,
+      )
+    }
   }
 }

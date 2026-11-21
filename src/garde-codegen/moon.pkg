@@ -7,6 +7,7 @@ import {
   "moonbitlang/parser/attribute",
   "moonbitlang/parser/fmt",
   "moonbitlang/parser/syntax",
+  "totto2727/serde/serde-codegen" @serde_codegen,
 }
 
 import {

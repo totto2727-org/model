@@ -502,6 +502,26 @@ fn field_quantifiers(
 }
 
 ///|
+/// Return the parameters that require `ToJson` for Serde to encode this record.
+/// Return `None` when Serde does not emit an encoder.
+pub fn record_to_json_bounds(
+  decl : @syntax.TypeDecl,
+) -> Array[String]? raise GenerateError {
+  guard parse_definition(decl) is Some(Record(record)) && !record.decode_only else {
+    return None
+  }
+  Some(
+    field_quantifiers(record.params, record.fields, decode=false).filter_map(param => {
+      if param.constraints.is_empty() {
+        None
+      } else {
+        Some(param.name)
+      }
+    }),
+  )
+}
+
+///|
 fn applied_type(name : String, params : Array[String]) -> @syntax.Type {
   ast_type(name, args=params.map(param => ast_type(param)))
 }

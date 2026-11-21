@@ -48,8 +48,7 @@ test "validate_only keeps validation and omits the codec" {
   let generated = @garde_codegen.generate_many([("endpoint.mbt", source)])
   assert_true(generated.contains("impl @garde.Validate for Endpoint"))
   assert_false(generated.contains("EndpointDecoded"))
-  assert_false(generated.contains("Endpoint::codec"))
-  assert_false(generated.contains("impl @garde.Decode"))
+  assert_false(generated.contains("Endpoint::to_decoded"))
 }
 
 ///|

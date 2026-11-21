@@ -489,6 +489,13 @@ pub impl[T : @json.FromJson] @json.FromJson for Endpoint[T] with fn from_json(
 }
 
 ///|
+pub impl[T : ToJson, U] ToJson for Tagged[T, U] with fn to_json(self) {
+  let obj : Map[String, Json] = Map([])
+  obj.set("tag", ToJson::to_json(self.tag))
+  Json::object(obj)
+}
+
+///|
 pub impl @garde.Validate for Address with fn collect(
   garde__self,
   garde__report,
@@ -502,23 +509,49 @@ pub impl @garde.Validate for Address with fn collect(
 }
 
 ///|
+pub extend Address with @garde.Validate::{validate}
+
+///|
+pub extend Address with ToJson::{to_json}
+
+///|
 ///
-pub(all) struct AddressDecoded {
+pub struct AddressDecoded {
   code : String
 }
 
 ///|
-pub impl @garde.Decode for Address
+///
+pub fn AddressDecoded::AddressDecoded(code : String) -> AddressDecoded {
+  { code, }
+}
 
 ///|
-pub impl @garde.Encode for AddressDecoded
+pub fn Address::to_decoded(
+  garde__value : Address,
+) -> Result[AddressDecoded, @garde.Report] {
+  if @garde.validate(garde__value) is Err(report) {
+    return Err(report)
+  }
+  Ok(AddressDecoded::{ code: garde__value.code, })
+}
 
 ///|
-pub fn Address::codec() -> @garde.Codec[Address, AddressDecoded] {
-  @garde.Codec::new(
-    fn(garde__value) { Ok(AddressDecoded::{ code: garde__value.code, }) },
-    fn(garde__value) { Address::{ code: garde__value.code, } },
-  )
+pub fn AddressDecoded::to_encoded(
+  garde__value : AddressDecoded,
+) -> Result[Address, @garde.Report] {
+  let garde__encoded = Address::{ code: garde__value.code, }
+  match @garde.validate(garde__encoded) {
+    Ok(_) => Ok(garde__encoded)
+    Err(report) => Err(report)
+  }
+}
+
+///|
+pub fn AddressDecoded::to_json(
+  self : AddressDecoded,
+) -> Result[Json, @garde.Report] {
+  self.to_encoded().map(encoded => ToJson::to_json(encoded))
 }
 
 ///|
@@ -575,8 +608,14 @@ pub impl @garde.Validate for Account with fn collect(
 }
 
 ///|
+pub extend Account with @garde.Validate::{validate}
+
+///|
+pub extend Account with ToJson::{to_json}
+
+///|
 ///
-pub(all) struct AccountDecoded {
+pub struct AccountDecoded {
   name : String
   level : Int32
   contact : String?
@@ -586,35 +625,58 @@ pub(all) struct AccountDecoded {
 }
 
 ///|
-pub impl @garde.Decode for Account
+///
+pub fn AccountDecoded::AccountDecoded(
+  name~ : String,
+  level~ : Int32,
+  contact~ : String?,
+  address~ : Address?,
+  locations~ : Array[Address],
+  notes~ : String,
+) -> AccountDecoded {
+  { name, level, contact, address, locations, notes, }
+}
 
 ///|
-pub impl @garde.Encode for AccountDecoded
+pub fn Account::to_decoded(
+  garde__value : Account,
+) -> Result[AccountDecoded, @garde.Report] {
+  if @garde.validate(garde__value) is Err(report) {
+    return Err(report)
+  }
+  Ok(AccountDecoded::{
+    name: garde__value.name,
+    level: garde__value.level,
+    contact: garde__value.contact,
+    address: garde__value.address,
+    locations: garde__value.locations,
+    notes: garde__value.notes,
+  })
+}
 
 ///|
-pub fn Account::codec() -> @garde.Codec[Account, AccountDecoded] {
-  @garde.Codec::new(
-    fn(garde__value) {
-      Ok(AccountDecoded::{
-        name: garde__value.name,
-        level: garde__value.level,
-        contact: garde__value.contact,
-        address: garde__value.address,
-        locations: garde__value.locations,
-        notes: garde__value.notes,
-      })
-    },
-    fn(garde__value) {
-      Account::{
-        name: garde__value.name,
-        level: garde__value.level,
-        contact: garde__value.contact,
-        address: garde__value.address,
-        locations: garde__value.locations,
-        notes: garde__value.notes,
-      }
-    },
-  )
+pub fn AccountDecoded::to_encoded(
+  garde__value : AccountDecoded,
+) -> Result[Account, @garde.Report] {
+  let garde__encoded = Account::{
+    name: garde__value.name,
+    level: garde__value.level,
+    contact: garde__value.contact,
+    address: garde__value.address,
+    locations: garde__value.locations,
+    notes: garde__value.notes,
+  }
+  match @garde.validate(garde__encoded) {
+    Ok(_) => Ok(garde__encoded)
+    Err(report) => Err(report)
+  }
+}
+
+///|
+pub fn AccountDecoded::to_json(
+  self : AccountDecoded,
+) -> Result[Json, @garde.Report] {
+  self.to_encoded().map(encoded => ToJson::to_json(encoded))
 }
 
 ///|
@@ -642,31 +704,46 @@ pub impl @garde.Validate for Queue with fn collect(
 }
 
 ///|
+pub extend Queue with @garde.Validate::{validate}
+
+///|
 ///
-pub(all) struct QueueDecoded {
+pub struct QueueDecoded {
   batches : FixedArray[ReadOnlyArray[Int32?]]
   name : String
 }
 
 ///|
-pub impl @garde.Decode for Queue
+///
+pub fn QueueDecoded::QueueDecoded(
+  batches~ : FixedArray[ReadOnlyArray[Int32?]],
+  name~ : String,
+) -> QueueDecoded {
+  { batches, name, }
+}
 
 ///|
-pub impl @garde.Encode for QueueDecoded
+pub fn Queue::to_decoded(
+  garde__value : Queue,
+) -> Result[QueueDecoded, @garde.Report] {
+  if @garde.validate(garde__value) is Err(report) {
+    return Err(report)
+  }
+  Ok(QueueDecoded::{ batches: garde__value.batches, name: garde__value.name, })
+}
 
 ///|
-pub fn Queue::codec() -> @garde.Codec[Queue, QueueDecoded] {
-  @garde.Codec::new(
-    fn(garde__value) {
-      Ok(QueueDecoded::{
-        batches: garde__value.batches,
-        name: garde__value.name,
-      })
-    },
-    fn(garde__value) {
-      Queue::{ batches: garde__value.batches, name: garde__value.name, }
-    },
-  )
+pub fn QueueDecoded::to_encoded(
+  garde__value : QueueDecoded,
+) -> Result[Queue, @garde.Report] {
+  let garde__encoded = Queue::{
+    batches: garde__value.batches,
+    name: garde__value.name,
+  }
+  match @garde.validate(garde__encoded) {
+    Ok(_) => Ok(garde__encoded)
+    Err(report) => Err(report)
+  }
 }
 
 ///|
@@ -693,6 +770,9 @@ pub impl @garde.Validate for Code with fn collect(
 }
 
 ///|
+pub extend Code with @garde.Validate::{validate}
+
+///|
 pub impl @garde.Validate for Pair with fn collect(
   garde__self,
   garde__report,
@@ -715,6 +795,9 @@ pub impl @garde.Validate for Pair with fn collect(
 }
 
 ///|
+pub extend Pair with @garde.Validate::{validate}
+
+///|
 pub impl[T : @garde.Validate, U] @garde.Validate for Batch[T, U] with fn collect(
   garde__self,
   garde__report,
@@ -729,31 +812,59 @@ pub impl[T : @garde.Validate, U] @garde.Validate for Batch[T, U] with fn collect
 }
 
 ///|
+pub extend Batch with @garde.Validate::{validate}
+
+///|
+pub extend Batch with ToJson::{to_json}
+
+///|
 ///
-pub(all) struct BatchDecoded[T, U] {
+pub struct BatchDecoded[T, U] {
   items : Array[T]
   metadata : U
 }
 
 ///|
-pub impl[T : @garde.Validate, U] @garde.Decode for Batch[T, U]
+///
+pub fn[T, U] BatchDecoded::BatchDecoded(
+  items~ : Array[T],
+  metadata~ : U,
+) -> BatchDecoded[T, U] {
+  { items, metadata, }
+}
 
 ///|
-pub impl[T, U] @garde.Encode for BatchDecoded[T, U]
+pub fn[T : @garde.Validate, U] Batch::to_decoded(
+  garde__value : Batch[T, U],
+) -> Result[BatchDecoded[T, U], @garde.Report] {
+  if @garde.validate(garde__value) is Err(report) {
+    return Err(report)
+  }
+  Ok(BatchDecoded::{
+    items: garde__value.items,
+    metadata: garde__value.metadata,
+  })
+}
 
 ///|
-pub fn[T, U] Batch::codec() -> @garde.Codec[Batch[T, U], BatchDecoded[T, U]] {
-  @garde.Codec::new(
-    fn(garde__value) {
-      Ok(BatchDecoded::{
-        items: garde__value.items,
-        metadata: garde__value.metadata,
-      })
-    },
-    fn(garde__value) {
-      Batch::{ items: garde__value.items, metadata: garde__value.metadata, }
-    },
-  )
+pub fn[T : @garde.Validate, U] BatchDecoded::to_encoded(
+  garde__value : BatchDecoded[T, U],
+) -> Result[Batch[T, U], @garde.Report] {
+  let garde__encoded = Batch::{
+    items: garde__value.items,
+    metadata: garde__value.metadata,
+  }
+  match @garde.validate(garde__encoded) {
+    Ok(_) => Ok(garde__encoded)
+    Err(report) => Err(report)
+  }
+}
+
+///|
+pub fn[T : @garde.Validate + ToJson, U : ToJson] BatchDecoded::to_json(
+  self : BatchDecoded[T, U],
+) -> Result[Json, @garde.Report] {
+  self.to_encoded().map(encoded => ToJson::to_json(encoded))
 }
 
 ///|
@@ -783,6 +894,9 @@ pub impl[T : @garde.Validate] @garde.Validate for Entry[T] with fn collect(
 }
 
 ///|
+pub extend Entry with @garde.Validate::{validate}
+
+///|
 pub impl[T : @garde.Length] @garde.Validate for Sized[T] with fn collect(
   garde__self,
   garde__report,
@@ -800,6 +914,9 @@ pub impl[T : @garde.Length] @garde.Validate for Sized[T] with fn collect(
 }
 
 ///|
+pub extend Sized with @garde.Validate::{validate}
+
+///|
 pub impl[T : @garde.Length] @garde.Validate for NestedSized[T] with fn collect(
   garde__self,
   garde__report,
@@ -813,6 +930,9 @@ pub impl[T : @garde.Length] @garde.Validate for NestedSized[T] with fn collect(
     }
   }
 }
+
+///|
+pub extend NestedSized with @garde.Validate::{validate}
 
 ///|
 pub impl[T : @garde.Length + @garde.Validate] @garde.Validate for Measured[T] with fn collect(
@@ -831,6 +951,9 @@ pub impl[T : @garde.Length + @garde.Validate] @garde.Validate for Measured[T] wi
     }
   }
 }
+
+///|
+pub extend Measured with @garde.Validate::{validate}
 
 ///|
 pub fn Allocation::collect_with(
@@ -860,6 +983,9 @@ pub fn Allocation::validate_with(
 }
 
 ///|
+pub extend Allocation with ToJson::{to_json}
+
+///|
 pub fn Request::collect_with(
   garde__self : Request,
   garde__context : Policy,
@@ -885,6 +1011,9 @@ pub fn Request::validate_with(
 }
 
 ///|
+pub extend Request with ToJson::{to_json}
+
+///|
 pub impl @garde.Validate for Confirmation with fn collect(
   garde__self,
   garde__report,
@@ -907,34 +1036,59 @@ pub impl @garde.Validate for Confirmation with fn collect(
 }
 
 ///|
+pub extend Confirmation with @garde.Validate::{validate}
+
+///|
+pub extend Confirmation with ToJson::{to_json}
+
+///|
 ///
-pub(all) struct ConfirmationDecoded {
+pub struct ConfirmationDecoded {
   repeated : String?
   code : String?
 }
 
 ///|
-pub impl @garde.Decode for Confirmation
+///
+pub fn ConfirmationDecoded::ConfirmationDecoded(
+  repeated~ : String?,
+  code~ : String?,
+) -> ConfirmationDecoded {
+  { repeated, code, }
+}
 
 ///|
-pub impl @garde.Encode for ConfirmationDecoded
+pub fn Confirmation::to_decoded(
+  garde__value : Confirmation,
+) -> Result[ConfirmationDecoded, @garde.Report] {
+  if @garde.validate(garde__value) is Err(report) {
+    return Err(report)
+  }
+  Ok(ConfirmationDecoded::{
+    repeated: garde__value.repeated,
+    code: garde__value.code,
+  })
+}
 
 ///|
-pub fn Confirmation::codec() -> @garde.Codec[Confirmation, ConfirmationDecoded] {
-  @garde.Codec::new(
-    fn(garde__value) {
-      Ok(ConfirmationDecoded::{
-        repeated: garde__value.repeated,
-        code: garde__value.code,
-      })
-    },
-    fn(garde__value) {
-      Confirmation::{
-        repeated: garde__value.repeated,
-        code: garde__value.code,
-      }
-    },
-  )
+pub fn ConfirmationDecoded::to_encoded(
+  garde__value : ConfirmationDecoded,
+) -> Result[Confirmation, @garde.Report] {
+  let garde__encoded = Confirmation::{
+    repeated: garde__value.repeated,
+    code: garde__value.code,
+  }
+  match @garde.validate(garde__encoded) {
+    Ok(_) => Ok(garde__encoded)
+    Err(report) => Err(report)
+  }
+}
+
+///|
+pub fn ConfirmationDecoded::to_json(
+  self : ConfirmationDecoded,
+) -> Result[Json, @garde.Report] {
+  self.to_encoded().map(encoded => ToJson::to_json(encoded))
 }
 
 ///|
@@ -951,34 +1105,49 @@ pub impl[T : Eq] @garde.Validate for Same[T] with fn collect(
 }
 
 ///|
+pub extend Same with @garde.Validate::{validate}
+
+///|
 ///
-pub(all) struct SameDecoded[T] {
+pub struct SameDecoded[T] {
   repeated : T
   original : T
 }
 
 ///|
-pub impl[T : Eq] @garde.Decode for Same[T]
+///
+pub fn[T] SameDecoded::SameDecoded(
+  repeated~ : T,
+  original~ : T,
+) -> SameDecoded[T] {
+  { repeated, original, }
+}
 
 ///|
-pub impl[T] @garde.Encode for SameDecoded[T]
+pub fn[T : Eq] Same::to_decoded(
+  garde__value : Same[T],
+) -> Result[SameDecoded[T], @garde.Report] {
+  if @garde.validate(garde__value) is Err(report) {
+    return Err(report)
+  }
+  Ok(SameDecoded::{
+    repeated: garde__value.repeated,
+    original: garde__value.original,
+  })
+}
 
 ///|
-pub fn[T] Same::codec() -> @garde.Codec[Same[T], SameDecoded[T]] {
-  @garde.Codec::new(
-    fn(garde__value) {
-      Ok(SameDecoded::{
-        repeated: garde__value.repeated,
-        original: garde__value.original,
-      })
-    },
-    fn(garde__value) {
-      Same::{
-        repeated: garde__value.repeated,
-        original: garde__value.original,
-      }
-    },
-  )
+pub fn[T : Eq] SameDecoded::to_encoded(
+  garde__value : SameDecoded[T],
+) -> Result[Same[T], @garde.Report] {
+  let garde__encoded = Same::{
+    repeated: garde__value.repeated,
+    original: garde__value.original,
+  }
+  match @garde.validate(garde__encoded) {
+    Ok(_) => Ok(garde__encoded)
+    Err(report) => Err(report)
+  }
 }
 
 ///|
@@ -1039,6 +1208,12 @@ pub impl @garde.Validate for ContactDetails with fn collect(
 }
 
 ///|
+pub extend ContactDetails with @garde.Validate::{validate}
+
+///|
+pub extend ContactDetails with ToJson::{to_json}
+
+///|
 pub impl @garde.Validate for ProductCode with fn collect(
   garde__self,
   garde__report,
@@ -1054,6 +1229,9 @@ pub impl @garde.Validate for ProductCode with fn collect(
     }
   }
 }
+
+///|
+pub extend ProductCode with @garde.Validate::{validate}
 
 ///|
 pub impl @garde.Validate for OrderChecks with fn collect(
@@ -1096,8 +1274,11 @@ pub impl @garde.Validate for OrderChecks with fn collect(
 }
 
 ///|
+pub extend OrderChecks with @garde.Validate::{validate}
+
+///|
 ///
-pub(all) struct OrderChecksDecoded {
+pub struct OrderChecksDecoded {
   strict : Bool
   product : ProductCode?
   quantity : Int64
@@ -1107,35 +1288,51 @@ pub(all) struct OrderChecksDecoded {
 }
 
 ///|
-pub impl @garde.Decode for OrderChecks
+///
+pub fn OrderChecksDecoded::OrderChecksDecoded(
+  strict~ : Bool,
+  product~ : ProductCode?,
+  quantity~ : Int64,
+  multiplier~ : Double,
+  policy~ : Policy,
+  allocations~ : Array[Allocation],
+) -> OrderChecksDecoded {
+  { strict, product, quantity, multiplier, policy, allocations, }
+}
 
 ///|
-pub impl @garde.Encode for OrderChecksDecoded
+pub fn OrderChecks::to_decoded(
+  garde__value : OrderChecks,
+) -> Result[OrderChecksDecoded, @garde.Report] {
+  if @garde.validate(garde__value) is Err(report) {
+    return Err(report)
+  }
+  Ok(OrderChecksDecoded::{
+    strict: garde__value.strict,
+    product: garde__value.product,
+    quantity: garde__value.quantity,
+    multiplier: garde__value.multiplier,
+    policy: garde__value.policy,
+    allocations: garde__value.allocations,
+  })
+}
 
 ///|
-pub fn OrderChecks::codec() -> @garde.Codec[OrderChecks, OrderChecksDecoded] {
-  @garde.Codec::new(
-    fn(garde__value) {
-      Ok(OrderChecksDecoded::{
-        strict: garde__value.strict,
-        product: garde__value.product,
-        quantity: garde__value.quantity,
-        multiplier: garde__value.multiplier,
-        policy: garde__value.policy,
-        allocations: garde__value.allocations,
-      })
-    },
-    fn(garde__value) {
-      OrderChecks::{
-        strict: garde__value.strict,
-        product: garde__value.product,
-        quantity: garde__value.quantity,
-        multiplier: garde__value.multiplier,
-        policy: garde__value.policy,
-        allocations: garde__value.allocations,
-      }
-    },
-  )
+pub fn OrderChecksDecoded::to_encoded(
+  garde__value : OrderChecksDecoded,
+) -> Result[OrderChecks, @garde.Report] {
+  let garde__encoded = OrderChecks::{
+    strict: garde__value.strict,
+    product: garde__value.product,
+    quantity: garde__value.quantity,
+    multiplier: garde__value.multiplier,
+    policy: garde__value.policy,
+    allocations: garde__value.allocations,
+  }
+  match @garde.validate(garde__encoded) {
+    Ok(_) => Ok(garde__encoded)
+    Err(report) => Err(report)
+  }
 }
 
 ///|
@@ -1203,8 +1400,11 @@ pub impl @garde.Validate for NumericRanges with fn collect(
 }
 
 ///|
+pub extend NumericRanges with @garde.Validate::{validate}
+
+///|
 ///
-pub(all) struct NumericRangesDecoded {
+pub struct NumericRangesDecoded {
   wide : Int64
   unsigned : UInt64
   huge : @bigint.BigInt
@@ -1214,38 +1414,51 @@ pub(all) struct NumericRangesDecoded {
 }
 
 ///|
-pub impl @garde.Decode for NumericRanges
+///
+pub fn NumericRangesDecoded::NumericRangesDecoded(
+  wide~ : Int64,
+  unsigned~ : UInt64,
+  huge~ : @bigint.BigInt,
+  single~ : Float,
+  double~ : Double,
+  base16~ : Int32,
+) -> NumericRangesDecoded {
+  { wide, unsigned, huge, single, double, base16, }
+}
 
 ///|
-pub impl @garde.Encode for NumericRangesDecoded
+pub fn NumericRanges::to_decoded(
+  garde__value : NumericRanges,
+) -> Result[NumericRangesDecoded, @garde.Report] {
+  if @garde.validate(garde__value) is Err(report) {
+    return Err(report)
+  }
+  Ok(NumericRangesDecoded::{
+    wide: garde__value.wide,
+    unsigned: garde__value.unsigned,
+    huge: garde__value.huge,
+    single: garde__value.single,
+    double: garde__value.double,
+    base16: garde__value.base16,
+  })
+}
 
 ///|
-pub fn NumericRanges::codec() -> @garde.Codec[
-  NumericRanges,
-  NumericRangesDecoded,
-] {
-  @garde.Codec::new(
-    fn(garde__value) {
-      Ok(NumericRangesDecoded::{
-        wide: garde__value.wide,
-        unsigned: garde__value.unsigned,
-        huge: garde__value.huge,
-        single: garde__value.single,
-        double: garde__value.double,
-        base16: garde__value.base16,
-      })
-    },
-    fn(garde__value) {
-      NumericRanges::{
-        wide: garde__value.wide,
-        unsigned: garde__value.unsigned,
-        huge: garde__value.huge,
-        single: garde__value.single,
-        double: garde__value.double,
-        base16: garde__value.base16,
-      }
-    },
-  )
+pub fn NumericRangesDecoded::to_encoded(
+  garde__value : NumericRangesDecoded,
+) -> Result[NumericRanges, @garde.Report] {
+  let garde__encoded = NumericRanges::{
+    wide: garde__value.wide,
+    unsigned: garde__value.unsigned,
+    huge: garde__value.huge,
+    single: garde__value.single,
+    double: garde__value.double,
+    base16: garde__value.base16,
+  }
+  match @garde.validate(garde__encoded) {
+    Ok(_) => Ok(garde__encoded)
+    Err(report) => Err(report)
+  }
 }
 
 ///|
@@ -1263,26 +1476,41 @@ pub impl @garde.Validate for ReversedRange with fn collect(
 }
 
 ///|
+pub extend ReversedRange with @garde.Validate::{validate}
+
+///|
 ///
-pub(all) struct ReversedRangeDecoded {
+pub struct ReversedRangeDecoded {
   wide : Int64
 }
 
 ///|
-pub impl @garde.Decode for ReversedRange
+///
+pub fn ReversedRangeDecoded::ReversedRangeDecoded(
+  wide : Int64,
+) -> ReversedRangeDecoded {
+  { wide, }
+}
 
 ///|
-pub impl @garde.Encode for ReversedRangeDecoded
+pub fn ReversedRange::to_decoded(
+  garde__value : ReversedRange,
+) -> Result[ReversedRangeDecoded, @garde.Report] {
+  if @garde.validate(garde__value) is Err(report) {
+    return Err(report)
+  }
+  Ok(ReversedRangeDecoded::{ wide: garde__value.wide, })
+}
 
 ///|
-pub fn ReversedRange::codec() -> @garde.Codec[
-  ReversedRange,
-  ReversedRangeDecoded,
-] {
-  @garde.Codec::new(
-    fn(garde__value) { Ok(ReversedRangeDecoded::{ wide: garde__value.wide, }) },
-    fn(garde__value) { ReversedRange::{ wide: garde__value.wide, } },
-  )
+pub fn ReversedRangeDecoded::to_encoded(
+  garde__value : ReversedRangeDecoded,
+) -> Result[ReversedRange, @garde.Report] {
+  let garde__encoded = ReversedRange::{ wide: garde__value.wide, }
+  match @garde.validate(garde__encoded) {
+    Ok(_) => Ok(garde__encoded)
+    Err(report) => Err(report)
+  }
 }
 
 ///|
@@ -1324,8 +1552,14 @@ pub impl[T] @garde.Validate for Endpoint[T] with fn collect(
 }
 
 ///|
+pub extend Endpoint with @garde.Validate::{validate}
+
+///|
+pub extend Endpoint with ToJson::{to_json}
+
+///|
 ///
-pub(all) struct EndpointDecoded[T] {
+pub struct EndpointDecoded[T] {
   url : @garde.Url
   allowed_ip : @garde.Addr?
   phone : @garde.PhoneNumber?
@@ -1334,64 +1568,157 @@ pub(all) struct EndpointDecoded[T] {
 }
 
 ///|
-pub impl[T] @garde.Decode for Endpoint[T]
+///
+pub fn[T] EndpointDecoded::EndpointDecoded(
+  url~ : @garde.Url,
+  allowed_ip~ : @garde.Addr?,
+  phone~ : @garde.PhoneNumber?,
+  name~ : String,
+  metadata~ : T,
+) -> EndpointDecoded[T] {
+  { url, allowed_ip, phone, name, metadata, }
+}
 
 ///|
-pub impl[T] @garde.Encode for EndpointDecoded[T]
-
-///|
-pub fn[T] Endpoint::codec() -> @garde.Codec[Endpoint[T], EndpointDecoded[T]] {
-  @garde.Codec::new(
-    fn(garde_value) {
-      guard @garde.parse_url(garde_value.url) is Some(garde_decoded_url) else {
+pub fn[T] Endpoint::to_decoded(
+  garde_value : Endpoint[T],
+) -> Result[EndpointDecoded[T], @garde.Report] {
+  if @garde.validate(garde_value) is Err(report) {
+    return Err(report)
+  }
+  guard @garde.parse_url(garde_value.url) is Some(garde_decoded_url) else {
+    return Err(
+      @garde.conversion_failure("url", "could not convert validated value"),
+    )
+  }
+  let garde_decoded_allowed_ip = match garde_value.allowed_ip {
+    None => None
+    Some(garde_item) => {
+      guard @garde.parse_ip(garde_item) is Some(garde_parsed) else {
         return Err(
-          @garde.conversion_failure("url", "could not convert validated value"),
+          @garde.conversion_failure(
+            "allowed_ip", "could not convert validated value",
+          ),
         )
       }
-      let garde_decoded_allowed_ip = match garde_value.allowed_ip {
-        None => None
-        Some(garde_item) => {
-          guard @garde.parse_ip(garde_item) is Some(garde_parsed) else {
-            return Err(
-              @garde.conversion_failure(
-                "allowed_ip", "could not convert validated value",
-              ),
-            )
-          }
-          Some(garde_parsed)
-        }
+      Some(garde_parsed)
+    }
+  }
+  let garde_decoded_phone = match garde_value.phone {
+    None => None
+    Some(garde_item) => {
+      guard @garde.parse_phone_number(garde_item) is Some(garde_parsed) else {
+        return Err(
+          @garde.conversion_failure(
+            "phone", "could not convert validated value",
+          ),
+        )
       }
-      let garde_decoded_phone = match garde_value.phone {
-        None => None
-        Some(garde_item) => {
-          guard @garde.parse_phone_number(garde_item) is Some(garde_parsed) else {
-            return Err(
-              @garde.conversion_failure(
-                "phone", "could not convert validated value",
-              ),
-            )
-          }
-          Some(garde_parsed)
-        }
-      }
-      Ok(EndpointDecoded::{
-        url: garde_decoded_url,
-        allowed_ip: garde_decoded_allowed_ip,
-        phone: garde_decoded_phone,
-        name: garde_value.name,
-        metadata: garde_value.metadata,
-      })
-    },
-    fn(garde_value) {
-      Endpoint::{
-        url: garde_value.url.encode(),
-        allowed_ip: garde_value.allowed_ip.map(garde_item => {
-          garde_item.to_string()
-        }),
-        phone: garde_value.phone.map(garde_item => garde_item.to_string()),
-        name: garde_value.name,
-        metadata: garde_value.metadata,
-      }
-    },
-  )
+      Some(garde_parsed)
+    }
+  }
+  Ok(EndpointDecoded::{
+    url: garde_decoded_url,
+    allowed_ip: garde_decoded_allowed_ip,
+    phone: garde_decoded_phone,
+    name: garde_value.name,
+    metadata: garde_value.metadata,
+  })
+}
+
+///|
+pub fn[T] EndpointDecoded::to_encoded(
+  garde_value : EndpointDecoded[T],
+) -> Result[Endpoint[T], @garde.Report] {
+  let garde_encoded = Endpoint::{
+    url: garde_value.url.encode(),
+    allowed_ip: garde_value.allowed_ip.map(garde_item => garde_item.to_string()),
+    phone: garde_value.phone.map(garde_item => garde_item.to_string()),
+    name: garde_value.name,
+    metadata: garde_value.metadata,
+  }
+  match @garde.validate(garde_encoded) {
+    Ok(_) => Ok(garde_encoded)
+    Err(report) => Err(report)
+  }
+}
+
+///|
+pub fn[T : ToJson] EndpointDecoded::to_json(
+  self : EndpointDecoded[T],
+) -> Result[Json, @garde.Report] {
+  self.to_encoded().map(encoded => ToJson::to_json(encoded))
+}
+
+///|
+pub impl[T, U : Eq] @garde.Validate for Tagged[T, U] with fn collect(
+  garde_self,
+  garde_report,
+  garde_path,
+) {
+  let garde_value = garde_self.repeated
+  let garde_path = garde_path.field("repeated")
+  if garde_value != garde_self.original {
+    garde_report.add(garde_path, "must match original")
+  }
+}
+
+///|
+pub extend Tagged with @garde.Validate::{validate}
+
+///|
+pub extend Tagged with ToJson::{to_json}
+
+///|
+///
+pub struct TaggedDecoded[T, U] {
+  tag : T
+  repeated : U
+  original : U
+}
+
+///|
+///
+pub fn[T, U] TaggedDecoded::TaggedDecoded(
+  tag~ : T,
+  repeated~ : U,
+  original~ : U,
+) -> TaggedDecoded[T, U] {
+  { tag, repeated, original, }
+}
+
+///|
+pub fn[T, U : Eq] Tagged::to_decoded(
+  garde_value : Tagged[T, U],
+) -> Result[TaggedDecoded[T, U], @garde.Report] {
+  if @garde.validate(garde_value) is Err(report) {
+    return Err(report)
+  }
+  Ok(TaggedDecoded::{
+    tag: garde_value.tag,
+    repeated: garde_value.repeated,
+    original: garde_value.original,
+  })
+}
+
+///|
+pub fn[T, U : Eq] TaggedDecoded::to_encoded(
+  garde_value : TaggedDecoded[T, U],
+) -> Result[Tagged[T, U], @garde.Report] {
+  let garde_encoded = Tagged::{
+    tag: garde_value.tag,
+    repeated: garde_value.repeated,
+    original: garde_value.original,
+  }
+  match @garde.validate(garde_encoded) {
+    Ok(_) => Ok(garde_encoded)
+    Err(report) => Err(report)
+  }
+}
+
+///|
+pub fn[T : ToJson, U : Eq] TaggedDecoded::to_json(
+  self : TaggedDecoded[T, U],
+) -> Result[Json, @garde.Report] {
+  self.to_encoded().map(encoded => ToJson::to_json(encoded))
 }

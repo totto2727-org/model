@@ -86,6 +86,12 @@ pub fn Report::violations(self : Report) -> ReadOnlyArray[Violation] {
 ///|
 pub(open) trait Validate {
   fn collect(Self, Report, Path) -> Unit
+  fn validate(Self) -> Result[Unit, Report] = _
+}
+
+///|
+impl Validate with fn validate(self) {
+  validate(self)
 }
 
 ///|
@@ -139,6 +145,15 @@ pub impl[T : Validate] Validate for Map[String, T] with fn collect(
 /// Validate an existing value and return all violations, independently of decoding.
 pub fn[T : Validate] validate(value : T) -> Result[Unit, Report] {
   validate_using(value, T::collect)
+}
+
+///|
+/// Report a conversion failure at a record field.
+pub fn conversion_failure(field : String, message : String) -> Report {
+  let report = { violations: [], }
+  let root = Path::{ reversed: @list.List([]), }
+  report.add(root.field(field), message)
+  report
 }
 
 ///|
