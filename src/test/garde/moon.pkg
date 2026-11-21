@@ -4,3 +4,8 @@ import {
   "totto2727/serde",
   "totto2727/serde/garde",
 }
+
+import {
+  "totto2727/serde/garde" @garde_api,
+  "totto2727/serde/test/garde" @models,
+} for "test"

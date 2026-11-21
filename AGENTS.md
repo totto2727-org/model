@@ -15,7 +15,7 @@ Keep the template's CI triggers and shared action references unless a project re
 - `src/garde/` and `src/garde-codegen/`: independent value validation and the `#custom.garde` generator. `serde-gen` emits codecs and validators in one run.
 - `src/cmd/serde-gen/`: Admiral command for native, linear Wasm, and JavaScript on Node.js that reads MoonBit source and writes a codec file. It is a separate Moon module so users of the codec library do not need Admiral. `package.nix` uses checksum-pinned Mooncakes archives without changing the local registry cache. Until Admiral 0.7.0 is available in the pinned Mooncakes index, the flake supplies a locked Admiral source as a Moon workspace member.
 - `src/test/serde/`: round-trip tests that compile and run the generated codecs.
-- `src/test/validation/`: test both generators together and verify that JSON decoding does not run validation.
+- `src/test/garde/`: test both generators together and verify that JSON decoding does not run validation.
 
 ## Validation
 
@@ -34,8 +34,8 @@ Regenerate and format the integration fixtures after changing a generator or an 
 
 ```sh
 serde-gen --package src/test/serde
-serde-gen --package src/test/validation
-moon fmt src/test/serde src/test/validation
+serde-gen --package src/test/garde
+moon fmt src/test/serde src/test/garde
 ```
 
 Only these packages' `serde.generated.mbt` files are tracked, so the generated changes can be reviewed with the models.
