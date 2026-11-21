@@ -65,7 +65,8 @@ pub impl @json.FromJson for Id with fn from_json(value, path) {
 ///|
 pub impl ToJson for Point with fn to_json(self) {
   match self {
-    Point(item_0, item_1) => Json::array([ToJson::to_json(item_0), ToJson::to_json(item_1)])
+    Point(item_0, item_1) =>
+      Json::array([ToJson::to_json(item_0), ToJson::to_json(item_1)])
   }
 }
 
@@ -213,12 +214,14 @@ pub impl @json.FromJson for Profile with fn from_json(value, path) {
     Some(value) => @json.from_json(value, path=path.add_key("displayName"))
     None => @serde.missing_field(path.add_key("displayName"), "displayName")
   }
-  let field_address : String = match @serde.field(obj, "email", ["mail"], path) {
+  let field_address : String = match
+    @serde.field(obj, "email", ["mail"], path) {
     Some(String(value)) => value
     Some(value) => @json.from_json(value, path=path.add_key("email"))
     None => @serde.missing_field(path.add_key("email"), "email")
   }
-  let field_status : String = match @serde.read_path(obj, ["meta", "status"], path) {
+  let field_status : String = match
+    @serde.read_path(obj, ["meta", "status"], path) {
     (Some(value), at, _) => @json.from_json(value, path=at)
     (None, at, key) => @serde.missing_field(at, key)
   }
@@ -305,7 +308,8 @@ Generated encoder and decoder excerpts:
 
 ```mbt nocheck
 ///|
-let field_status : String = match @serde.read_path(obj, ["meta", "status"], path) {
+let field_status : String = match
+  @serde.read_path(obj, ["meta", "status"], path) {
   (Some(value), at, _) => @json.from_json(value, path=at)
   (None, at, key) => @serde.missing_field(at, key)
 }
