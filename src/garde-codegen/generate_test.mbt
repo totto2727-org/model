@@ -7,8 +7,11 @@ test "reject unsupported garde codec declarations" {
         "#custom.garde(codec, context=C)\nstruct S { value : String }", "does not support contextual validation",
       ),
       (
-        "#custom.garde(codec)\nstruct S {\n  #custom.garde(url, phone_number)\n  value : String\n}",
+        "#custom.garde\nstruct S {\n  #custom.garde(url, phone_number)\n  value : String\n}",
         "supports one URL, IP, or phone number format per field",
+      ),
+      (
+        "#custom.garde(codec, validate_only)\nstruct S { value : String }", "unknown, invalid, or repeated #custom.garde option",
       ),
     ] {
     let result = Ok(@garde_codegen.generate_many([("codec.mbt", source)])) catch {
@@ -22,7 +25,7 @@ test "reject unsupported garde codec declarations" {
 ///|
 test "codec bindings use field names rather than positions" {
   let source =
-    #|#custom.garde(codec)
+    #|#custom.garde
     #|struct Endpoint {
     #|  #custom.garde(url)
     #|  url : String
@@ -32,6 +35,21 @@ test "codec bindings use field names rather than positions" {
   let generated = @garde_codegen.generate_many([("endpoint.mbt", source)])
   assert_true(generated.contains("Some(garde_decoded_url)"))
   assert_true(generated.contains("let garde_decoded_allowed_ip ="))
+}
+
+///|
+test "validate_only keeps validation and omits the codec" {
+  let source =
+    #|#custom.garde(validate_only)
+    #|struct Endpoint {
+    #|  #custom.garde(url)
+    #|  url : String
+    #|}
+  let generated = @garde_codegen.generate_many([("endpoint.mbt", source)])
+  assert_true(generated.contains("impl @garde.Validate for Endpoint"))
+  assert_false(generated.contains("EndpointDecoded"))
+  assert_false(generated.contains("Endpoint::codec"))
+  assert_false(generated.contains("impl @garde.Decode"))
 }
 
 ///|

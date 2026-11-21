@@ -145,7 +145,7 @@ pub(all) struct Same[T] {
 
 ///|
 #custom.serde
-#custom.garde
+#custom.garde(validate_only)
 pub(all) struct ContactDetails {
   #custom.garde(email)
   email : String

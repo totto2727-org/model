@@ -56,13 +56,14 @@ fn emit_codec(
   decl : @syntax.TypeDecl,
   fields : @list.List[@syntax.FieldDecl],
   visibility : String,
-  quantifiers : String,
+  validate_quantifiers : String,
   wire : String,
   p : String,
 ) -> Unit raise GenerateError {
   let name = decl.tycon
   let decoded = "\{name}Decoded"
-  let domain = decoded + wire[name.length():].to_owned()
+  let type_args = wire[name.length():].to_owned()
+  let domain = decoded + type_args
   let encode_fields : Array[String] = []
   let decode_fields : Array[String] = []
   let decode_body = StringBuilder()
@@ -106,9 +107,9 @@ fn emit_codec(
   }
   out.write_string(@fmt.impls_to_string(@list.List([TopTypeDef(domain_decl)])))
   out.write_string(
-    "\n\{visibility}impl\{quantifiers} @garde.Decode for \{wire}\n\{visibility}impl\{quantifiers} @garde.Encode for \{domain}\n",
+    "\n\{visibility}impl\{validate_quantifiers} @garde.Decode for \{wire}\n\{visibility}impl\{type_args} @garde.Encode for \{domain}\n",
   )
   out.write_string(
-    "\{visibility}fn\{quantifiers} \{name}::codec() -> @garde.Codec[\{wire}, \{domain}] {\n@garde.Codec::new(fn (\{p}value) {\n\{decode_body.to_string()}Ok(\{decoded}::{ \{decode_fields.join(", ")} })\n}, fn (\{p}value) {\n\{name}::{ \{encode_fields.join(", ")} }\n})\n}\n",
+    "\{visibility}fn\{type_args} \{name}::codec() -> @garde.Codec[\{wire}, \{domain}] {\n@garde.Codec::new(fn (\{p}value) {\n\{decode_body.to_string()}Ok(\{decoded}::{ \{decode_fields.join(", ")} })\n}, fn (\{p}value) {\n\{name}::{ \{encode_fields.join(", ")} }\n})\n}\n",
   )
 }

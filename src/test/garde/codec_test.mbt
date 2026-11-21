@@ -94,3 +94,18 @@ test "Garde encode validates the converted wire model" {
     "allowed_ip", "phone", "name",
   ])
 }
+
+///|
+test "default codec preserves fields without a format conversion" {
+  let wire : @models.Address = { code: "JP", }
+  let codec = @models.Address::codec()
+  guard @garde_api.decode(wire, codec) is Ok(decoded) else {
+    fail("expected a decoded address")
+  }
+  let decoded : @models.AddressDecoded = decoded
+  assert_eq(decoded.code, "JP")
+  guard @garde_api.encode(decoded, codec) is Ok(encoded) else {
+    fail("expected an encoded address")
+  }
+  assert_eq(encoded.code, "JP")
+}

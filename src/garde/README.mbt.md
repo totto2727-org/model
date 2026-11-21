@@ -6,12 +6,12 @@ Run validation explicitly on decoded or manually constructed values.
 ## Usage
 
 After [setup](#setup), define the JSON model in `src/models/endpoint.mbt`.
-Use `codec` to generate the `EndpointDecoded` type with a typed URL field.
+Garde generates the `EndpointDecoded` type with a typed URL field.
 
 ```mbt nocheck
 ///|
 #custom.serde
-#custom.garde(codec)
+#custom.garde
 pub(all) struct Endpoint {
   #custom.serde(rename="endpointUrl")
   #custom.garde(url)
@@ -63,9 +63,12 @@ Follow the [Serde setup](https://github.com/totto2727-org/serde#setup) and selec
 Import `totto2727/serde/garde` in the model package.
 For the JSON example above, also import `moonbitlang/core/json` and `totto2727/serde`.
 
-## Typed model conversion with `codec`
+## Typed model conversion
 
-Use `#custom.garde(codec)` on a record to generate a second record named `ModelDecoded`.
+On a record without a validation context, `#custom.garde` generates `Validate`, a second record named `ModelDecoded`, and the codec for `decode` and `encode`.
+Use `#custom.garde(validate_only)` to generate validation without the decoded type or codec.
+For a private record used only for validation, this also avoids unused-code warnings from the generated codec.
+Records with a validation context, tuple structs, and enums generate validation only.
 Keep `#custom.serde` on the original record so that Serde reads and writes its wire representation.
 
 For the `Endpoint` model in [Usage](#usage), the generator keeps the `Validate` implementation and adds this type and these trait implementations:
@@ -111,15 +114,15 @@ The codec argument identifies the pair at compile time because MoonBit traits ca
 These functions do not accept or produce `Json`.
 Use Serde's `@json.from_json` before `decode` and `ToJson::to_json` after `encode`.
 
-On a `codec` record, a direct `url` rule converts a `String` to MoonBit Stack's `Url`, re-exported as `@garde.Url`.
+A direct `url` rule converts a `String` to MoonBit Stack's `Url`, re-exported as `@garde.Url`.
 A direct `ip`, `ipv4`, or `ipv6` rule converts a `String` to MoonBit Stack's `Addr`, re-exported as `@garde.Addr`.
 A direct `phone_number` rule converts a `String` to dialnumber's `PhoneNumber`, re-exported as `@garde.PhoneNumber`.
 Encoding uses `PhoneNumber::to_string`, which keeps the country calling code and any extension.
 Optional fields preserve `None` and convert only `Some`.
 Other fields keep their original types, including nested fields validated with `dive` or `inner`.
+Garde generates `ModelDecoded` even when no field changes type.
 These formatters can normalize the spelling, so encoding does not guarantee the exact original text.
 A successful decode parses these fields once to validate them and once to construct their typed values.
-Generated codecs support records without a validation context.
 For other typed conversions, implement `Decode` and `Encode` for your two models and build the pair with `Codec::new`.
 
 ## API

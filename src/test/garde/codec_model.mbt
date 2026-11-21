@@ -1,6 +1,6 @@
 ///|
 #custom.serde
-#custom.garde(codec)
+#custom.garde
 pub(all) struct Endpoint[T] {
   #custom.serde(rename="endpointUrl")
   #custom.garde(url)

@@ -502,6 +502,26 @@ pub impl @garde.Validate for Address with fn collect(
 }
 
 ///|
+///
+pub(all) struct AddressDecoded {
+  code : String
+}
+
+///|
+pub impl @garde.Decode for Address
+
+///|
+pub impl @garde.Encode for AddressDecoded
+
+///|
+pub fn Address::codec() -> @garde.Codec[Address, AddressDecoded] {
+  @garde.Codec::new(
+    fn(garde__value) { Ok(AddressDecoded::{ code: garde__value.code, }) },
+    fn(garde__value) { Address::{ code: garde__value.code, } },
+  )
+}
+
+///|
 pub impl @garde.Validate for Account with fn collect(
   garde__self,
   garde__report,
@@ -555,6 +575,49 @@ pub impl @garde.Validate for Account with fn collect(
 }
 
 ///|
+///
+pub(all) struct AccountDecoded {
+  name : String
+  level : Int32
+  contact : String?
+  address : Address?
+  locations : Array[Address]
+  notes : String
+}
+
+///|
+pub impl @garde.Decode for Account
+
+///|
+pub impl @garde.Encode for AccountDecoded
+
+///|
+pub fn Account::codec() -> @garde.Codec[Account, AccountDecoded] {
+  @garde.Codec::new(
+    fn(garde__value) {
+      Ok(AccountDecoded::{
+        name: garde__value.name,
+        level: garde__value.level,
+        contact: garde__value.contact,
+        address: garde__value.address,
+        locations: garde__value.locations,
+        notes: garde__value.notes,
+      })
+    },
+    fn(garde__value) {
+      Account::{
+        name: garde__value.name,
+        level: garde__value.level,
+        contact: garde__value.contact,
+        address: garde__value.address,
+        locations: garde__value.locations,
+        notes: garde__value.notes,
+      }
+    },
+  )
+}
+
+///|
 pub impl @garde.Validate for Queue with fn collect(
   garde__self,
   garde__report,
@@ -576,6 +639,34 @@ pub impl @garde.Validate for Queue with fn collect(
       }
     }
   }
+}
+
+///|
+///
+pub(all) struct QueueDecoded {
+  batches : FixedArray[ReadOnlyArray[Int32?]]
+  name : String
+}
+
+///|
+pub impl @garde.Decode for Queue
+
+///|
+pub impl @garde.Encode for QueueDecoded
+
+///|
+pub fn Queue::codec() -> @garde.Codec[Queue, QueueDecoded] {
+  @garde.Codec::new(
+    fn(garde__value) {
+      Ok(QueueDecoded::{
+        batches: garde__value.batches,
+        name: garde__value.name,
+      })
+    },
+    fn(garde__value) {
+      Queue::{ batches: garde__value.batches, name: garde__value.name, }
+    },
+  )
 }
 
 ///|
@@ -635,6 +726,34 @@ pub impl[T : @garde.Validate, U] @garde.Validate for Batch[T, U] with fn collect
     let garde__path = garde__path.index(garde__index)
     @garde.Validate::collect(garde__value, garde__report, garde__path)
   }
+}
+
+///|
+///
+pub(all) struct BatchDecoded[T, U] {
+  items : Array[T]
+  metadata : U
+}
+
+///|
+pub impl[T : @garde.Validate, U] @garde.Decode for Batch[T, U]
+
+///|
+pub impl[T, U] @garde.Encode for BatchDecoded[T, U]
+
+///|
+pub fn[T, U] Batch::codec() -> @garde.Codec[Batch[T, U], BatchDecoded[T, U]] {
+  @garde.Codec::new(
+    fn(garde__value) {
+      Ok(BatchDecoded::{
+        items: garde__value.items,
+        metadata: garde__value.metadata,
+      })
+    },
+    fn(garde__value) {
+      Batch::{ items: garde__value.items, metadata: garde__value.metadata, }
+    },
+  )
 }
 
 ///|
@@ -788,6 +907,37 @@ pub impl @garde.Validate for Confirmation with fn collect(
 }
 
 ///|
+///
+pub(all) struct ConfirmationDecoded {
+  repeated : String?
+  code : String?
+}
+
+///|
+pub impl @garde.Decode for Confirmation
+
+///|
+pub impl @garde.Encode for ConfirmationDecoded
+
+///|
+pub fn Confirmation::codec() -> @garde.Codec[Confirmation, ConfirmationDecoded] {
+  @garde.Codec::new(
+    fn(garde__value) {
+      Ok(ConfirmationDecoded::{
+        repeated: garde__value.repeated,
+        code: garde__value.code,
+      })
+    },
+    fn(garde__value) {
+      Confirmation::{
+        repeated: garde__value.repeated,
+        code: garde__value.code,
+      }
+    },
+  )
+}
+
+///|
 pub impl[T : Eq] @garde.Validate for Same[T] with fn collect(
   garde__self,
   garde__report,
@@ -798,6 +948,37 @@ pub impl[T : Eq] @garde.Validate for Same[T] with fn collect(
   if garde__value != garde__self.original {
     garde__report.add(garde__path, "must match original")
   }
+}
+
+///|
+///
+pub(all) struct SameDecoded[T] {
+  repeated : T
+  original : T
+}
+
+///|
+pub impl[T : Eq] @garde.Decode for Same[T]
+
+///|
+pub impl[T] @garde.Encode for SameDecoded[T]
+
+///|
+pub fn[T] Same::codec() -> @garde.Codec[Same[T], SameDecoded[T]] {
+  @garde.Codec::new(
+    fn(garde__value) {
+      Ok(SameDecoded::{
+        repeated: garde__value.repeated,
+        original: garde__value.original,
+      })
+    },
+    fn(garde__value) {
+      Same::{
+        repeated: garde__value.repeated,
+        original: garde__value.original,
+      }
+    },
+  )
 }
 
 ///|
@@ -915,6 +1096,49 @@ pub impl @garde.Validate for OrderChecks with fn collect(
 }
 
 ///|
+///
+pub(all) struct OrderChecksDecoded {
+  strict : Bool
+  product : ProductCode?
+  quantity : Int64
+  multiplier : Double
+  policy : Policy
+  allocations : Array[Allocation]
+}
+
+///|
+pub impl @garde.Decode for OrderChecks
+
+///|
+pub impl @garde.Encode for OrderChecksDecoded
+
+///|
+pub fn OrderChecks::codec() -> @garde.Codec[OrderChecks, OrderChecksDecoded] {
+  @garde.Codec::new(
+    fn(garde__value) {
+      Ok(OrderChecksDecoded::{
+        strict: garde__value.strict,
+        product: garde__value.product,
+        quantity: garde__value.quantity,
+        multiplier: garde__value.multiplier,
+        policy: garde__value.policy,
+        allocations: garde__value.allocations,
+      })
+    },
+    fn(garde__value) {
+      OrderChecks::{
+        strict: garde__value.strict,
+        product: garde__value.product,
+        quantity: garde__value.quantity,
+        multiplier: garde__value.multiplier,
+        policy: garde__value.policy,
+        allocations: garde__value.allocations,
+      }
+    },
+  )
+}
+
+///|
 pub impl @garde.Validate for NumericRanges with fn collect(
   garde__self,
   garde__report,
@@ -979,6 +1203,52 @@ pub impl @garde.Validate for NumericRanges with fn collect(
 }
 
 ///|
+///
+pub(all) struct NumericRangesDecoded {
+  wide : Int64
+  unsigned : UInt64
+  huge : @bigint.BigInt
+  single : Float
+  double : Double
+  base16 : Int32
+}
+
+///|
+pub impl @garde.Decode for NumericRanges
+
+///|
+pub impl @garde.Encode for NumericRangesDecoded
+
+///|
+pub fn NumericRanges::codec() -> @garde.Codec[
+  NumericRanges,
+  NumericRangesDecoded,
+] {
+  @garde.Codec::new(
+    fn(garde__value) {
+      Ok(NumericRangesDecoded::{
+        wide: garde__value.wide,
+        unsigned: garde__value.unsigned,
+        huge: garde__value.huge,
+        single: garde__value.single,
+        double: garde__value.double,
+        base16: garde__value.base16,
+      })
+    },
+    fn(garde__value) {
+      NumericRanges::{
+        wide: garde__value.wide,
+        unsigned: garde__value.unsigned,
+        huge: garde__value.huge,
+        single: garde__value.single,
+        double: garde__value.double,
+        base16: garde__value.base16,
+      }
+    },
+  )
+}
+
+///|
 pub impl @garde.Validate for ReversedRange with fn collect(
   garde__self,
   garde__report,
@@ -990,6 +1260,29 @@ pub impl @garde.Validate for ReversedRange with fn collect(
     is Some(message) {
     garde__report.add(garde__path, message)
   }
+}
+
+///|
+///
+pub(all) struct ReversedRangeDecoded {
+  wide : Int64
+}
+
+///|
+pub impl @garde.Decode for ReversedRange
+
+///|
+pub impl @garde.Encode for ReversedRangeDecoded
+
+///|
+pub fn ReversedRange::codec() -> @garde.Codec[
+  ReversedRange,
+  ReversedRangeDecoded,
+] {
+  @garde.Codec::new(
+    fn(garde__value) { Ok(ReversedRangeDecoded::{ wide: garde__value.wide, }) },
+    fn(garde__value) { ReversedRange::{ wide: garde__value.wide, } },
+  )
 }
 
 ///|

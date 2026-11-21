@@ -2,10 +2,17 @@
 priv struct Settings {
   allow_unvalidated : Bool
   transparent : Bool
-  codec : Bool
+  codec : CodecMode
   context : String?
   bounds : Map[String, Array[String]]
   selectors : Map[String, Array[Rule]]
+}
+
+///|
+priv enum CodecMode {
+  Auto
+  Enabled
+  Disabled
 }
 
 ///|
@@ -53,7 +60,7 @@ fn settings(
 ) -> Settings raise GenerateError {
   let mut allow_unvalidated = false
   let mut transparent = false
-  let mut codec = false
+  let mut codec = Auto
   let mut context = None
   let bounds = Map([])
   let selectors = Map([])
@@ -63,8 +70,10 @@ fn settings(
         allow_unvalidated = true
       Expr(Ident({ qual: None, name: "transparent", })) if !variant &&
         !transparent => transparent = true
-      Expr(Ident({ qual: None, name: "codec", })) if !variant && !codec =>
-        codec = true
+      Expr(Ident({ qual: None, name: "codec", })) if !variant && codec is Auto =>
+        codec = Enabled
+      Expr(Ident({ qual: None, name: "validate_only", })) if !variant &&
+        codec is Auto => codec = Disabled
       Labeled("context", Ident({ qual, name, })) if !variant && context is None =>
         context = Some(
           match qual {
@@ -383,7 +392,7 @@ fn emit_declaration(
     params,
     select_fields=decl.components is TupleStruct(_),
   )
-  if opts.codec {
+  if opts.codec is Enabled {
     if !(decl.components is Record(..)) {
       fail(at, "garde codec requires a record struct")
     }
@@ -475,7 +484,9 @@ fn emit_declaration(
       )
     }
   }
-  if opts.codec && decl.components is Record(fields~, ..) {
+  if !(opts.codec is Disabled) &&
+    opts.context is None &&
+    decl.components is Record(fields~, ..) {
     emit_codec(out, decl, fields, visibility, quantifiers, target, p)
   }
 }
