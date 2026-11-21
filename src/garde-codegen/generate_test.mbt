@@ -1,4 +1,25 @@
 ///|
+test "reject unsupported garde codec declarations" {
+  for
+    (source, expected) in [
+      ("#custom.garde(codec)\nstruct S(String)", "requires a record struct"),
+      (
+        "#custom.garde(codec, context=C)\nstruct S { value : String }", "does not support contextual validation",
+      ),
+      (
+        "#custom.garde(codec)\nstruct S {\n  #custom.garde(url, phone_number)\n  value : String\n}",
+        "supports one URL, IP, or phone number format per field",
+      ),
+    ] {
+    let result = Ok(@garde_codegen.generate_many([("codec.mbt", source)])) catch {
+      @garde_codegen.GenerateError(message) => Err(message)
+    }
+    guard result is Err(message) else { fail("accepted \{source}") }
+    assert_true(message.contains(expected), msg=message)
+  }
+}
+
+///|
 test "reject invalid rules at the field's source location" {
   for
     (attribute, field_type, expected) in [

@@ -1,21 +1,33 @@
 ///|
-/// Check for an absolute WHATWG URL, including non-HTTP schemes.
-pub fn url(value : String) -> String? {
-  try @moonurl.Url::decode(value[:], syntax=@moonurl.Whatwg) catch {
-    _ => Some("must be a valid URL")
+pub using @moonurl {type Url}
+
+///|
+pub using @moonip {type Addr}
+
+///|
+/// Parse an absolute WHATWG URL, including non-HTTP schemes.
+pub fn parse_url(value : String) -> Url? {
+  try Url::decode(value[:], syntax=@moonurl.Whatwg) catch {
+    _ => None
   } noraise {
-    parsed =>
-      if parsed.scheme is Some(_) {
-        None
-      } else {
-        Some("must be a valid URL")
-      }
+    parsed => if parsed.scheme is Some(_) { Some(parsed) } else { None }
   }
 }
 
 ///|
-fn parse_ip(value : String) -> @moonip.Addr? {
-  try @moonip.Addr::parse(value[:]) catch {
+/// Check for an absolute WHATWG URL, including non-HTTP schemes.
+pub fn url(value : String) -> String? {
+  if parse_url(value) is Some(_) {
+    None
+  } else {
+    Some("must be a valid URL")
+  }
+}
+
+///|
+/// Parse a bare IPv4 or IPv6 address without a zone identifier.
+pub fn parse_ip(value : String) -> Addr? {
+  try Addr::parse(value[:]) catch {
     _ => None
   } noraise {
     address => if address.zone() is None { Some(address) } else { None }

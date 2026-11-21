@@ -2,6 +2,7 @@
 priv struct Settings {
   allow_unvalidated : Bool
   transparent : Bool
+  codec : Bool
   context : String?
   bounds : Map[String, Array[String]]
   selectors : Map[String, Array[Rule]]
@@ -52,6 +53,7 @@ fn settings(
 ) -> Settings raise GenerateError {
   let mut allow_unvalidated = false
   let mut transparent = false
+  let mut codec = false
   let mut context = None
   let bounds = Map([])
   let selectors = Map([])
@@ -61,6 +63,8 @@ fn settings(
         allow_unvalidated = true
       Expr(Ident({ qual: None, name: "transparent", })) if !variant &&
         !transparent => transparent = true
+      Expr(Ident({ qual: None, name: "codec", })) if !variant && !codec =>
+        codec = true
       Labeled("context", Ident({ qual, name, })) if !variant && context is None =>
         context = Some(
           match qual {
@@ -117,7 +121,7 @@ fn settings(
       _ => fail(at, "unknown, invalid, or repeated #custom.garde option")
     }
   }
-  { allow_unvalidated, transparent, context, bounds, selectors, }
+  { allow_unvalidated, transparent, codec, context, bounds, selectors, }
 }
 
 ///|
@@ -375,6 +379,14 @@ fn emit_declaration(
     params,
     select_fields=decl.components is TupleStruct(_),
   )
+  if opts.codec {
+    if !(decl.components is Record(..)) {
+      fail(at, "garde codec requires a record struct")
+    }
+    if opts.context is Some(_) {
+      fail(at, "garde codec does not support contextual validation")
+    }
+  }
   let bounds = Map([])
   for param in params {
     bounds[param] = opts.bounds.get(param).unwrap_or([])
@@ -458,5 +470,8 @@ fn emit_declaration(
         "\{visibility}fn\{quantifiers} \{name}::validate_with(self : \{target}, context : \{ctx}) -> Result[Unit, @garde.Report] {\n@garde.validate_using(self, (value, report, path) => value.collect_with(context, report, path))\n}\n",
       )
     }
+  }
+  if opts.codec && decl.components is Record(fields~, ..) {
+    emit_codec(out, decl, fields, visibility, quantifiers, target, p)
   }
 }
