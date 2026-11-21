@@ -7,7 +7,7 @@ Compare four ways to decode the same nested request in a native release build.
 | `pattern` | Match built-in `Json` object, string, Boolean, and array patterns. |
 | `lens-per-call` | Build the 12 typed Lens paths and read them on each call. |
 | `lens-prebuilt` | Reuse the same 12 typed Lens paths, built before timing. |
-| `serde` | Call `@json.from_json` with the implementation from `serde-gen`. |
+| `serde` | Call `@json.from_json` with the implementation from `model_gen`. |
 
 For encoding, compare a hand-written JSON object with the generated `ToJson` implementation for the same request.
 Lens is measured on decoding only. Its setters update an existing document, which is a different operation from encoding a typed record into a new one.
@@ -18,13 +18,12 @@ From the repository root, enter `nix develop .#ci` to use the pinned MoonBit too
 
 ```sh
 cd bench
-serde-gen --package .
 moon test . --target native --deny-warn
 moon bench . --target native --release --deny-warn --no-parallelize
 ```
 
 The workspace uses Serde from this checkout and Lens `0.4.4` from Mooncakes.
-The generator writes `serde.generated.mbt` locally. Do not add that file to Git.
+The `dev_build` rule in [`moon.pkg`](moon.pkg) writes `serde.generated.mbt` locally. Do not add that file to Git.
 Run on an idle machine and repeat the command before drawing conclusions from small differences.
 
 ## Input and timing

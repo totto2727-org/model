@@ -54,26 +54,17 @@ From the root of your MoonBit module, add the [Model library](https://mooncakes.
 moon add totto2727/model
 ```
 
-### Run without installing
-
-Use `moonx` when the CLI is available on Mooncakes, or use Nix:
-
-```sh
-moonx totto2727/serde-gen --help
-nix run github:totto2727-org/model -- --help
-```
-
-### Install
+### Install the generator
 
 ```sh
 nix profile add github:totto2727-org/model
 ```
 
-Add the `bin` directory of your Nix profile to `PATH` if your shell cannot find `serde-gen`.
+Keep `model_gen` on `PATH` so Moon can run it.
 
 ### Nix flake
 
-Use the Model overlay to add `serde-gen` to your development shell.
+Use the Model overlay to add `model_gen` to your development shell instead of installing it to your profile.
 Set `system` to `aarch64-darwin` or `x86_64-linux`.
 
 ```nix
@@ -93,13 +84,13 @@ Set `system` to `aarch64-darwin` or `x86_64-linux`.
     in
     {
       devShells.${system}.default = pkgs.mkShell {
-        packages = [ pkgs.serde-gen ];
+        packages = [ pkgs.model_gen ];
       };
     };
 }
 ```
 
-### Generate code before a build
+### Generate code with `dev_build`
 
 `src/models/moon.pkg`:
 
@@ -109,17 +100,21 @@ import {
   "moonbitlang/core/json",
   "totto2727/model/serde",
 }
+
+rule(name: "model_gen", command: "model_gen $input --output $output")
+
+dev_build(
+  rule: "model_gen",
+  input: "endpoint.mbt",
+  output: "serde.generated.mbt",
+)
 ```
 
-From the module root, run the generator before `moon check`, `moon build`, or `moon test`.
-Pass the package directory, not a list of model files.
-
-```sh
-serde-gen --package src/models
-```
-
-One invocation discovers both `#custom.serde` and `#custom.garde` and writes all generated code to `serde.generated.mbt`.
-Import `totto2727/model/garde` only if the package uses Garde attributes.
+Run `moon check`, `moon build`, or `moon test` as usual. Moon runs `model_gen` before it compiles the package.
+Use paths relative to `moon.pkg` in `input` and `output`.
+For multiple model files, list them in `input`, for example `input: ["endpoint.mbt", "contact.mbt"]`.
+The same rule generates both Serde codecs and Garde validators. For Garde models, also import `totto2727/model/garde`.
+See MoonBit's [package configuration](https://github.com/moonbitlang/moonbit-docs/blob/main/next/toolchain/moon/package.md) for more about `dev_build`.
 
 ## API
 
@@ -129,7 +124,7 @@ Use the Mooncakes version selector to read the documentation for the version you
 - [Serde attributes](https://mooncakes.io/docs/totto2727/model/serde-codegen): `#custom.serde` examples and generated codec excerpts.
 - [Garde API and attributes](https://mooncakes.io/docs/totto2727/model/garde): Validation types, `#custom.garde` examples, and generated validator excerpts.
 
-For command-line options, see the [`serde-gen` package README](https://mooncakes.io/docs/totto2727/serde-gen) after the CLI release is available on Mooncakes.
+For manual generation and command-line options, see the [`model_gen` README](https://github.com/totto2727-org/model/tree/main/src/cmd/serde-gen).
 
 ## Development
 

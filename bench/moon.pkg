@@ -7,3 +7,7 @@ import {
   "moonbitlang/core/bench",
   "totto2727/lens",
 } for "wbtest"
+
+rule(name: "model_gen", command: "model_gen $input --output $output")
+
+dev_build(rule: "model_gen", input: "model.mbt", output: "serde.generated.mbt")

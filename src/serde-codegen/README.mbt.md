@@ -20,7 +20,8 @@ See the [Model prerequisites](https://github.com/totto2727-org/model#prerequisit
 
 ## Setup
 
-Follow the [Model setup](https://github.com/totto2727-org/model#setup) and import `moonbitlang/core/json` and `totto2727/model/serde` in the model package.
+Install `model_gen` and add the [`dev_build` rule](https://github.com/totto2727-org/model#generate-code-with-dev_build) to the model package's `moon.pkg`.
+Import `moonbitlang/core/json` and `totto2727/model/serde` in that package.
 
 ## API
 

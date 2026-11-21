@@ -50,17 +50,17 @@
     in
     {
       overlays.default = _final: previous: {
-        serde-gen = self.packages.${previous.stdenv.hostPlatform.system}.serde-gen;
+        model_gen = self.packages.${previous.stdenv.hostPlatform.system}.model_gen;
       };
 
       packages = forEachSystem (
         system:
         let
-          serde-gen = mkGenerator (mkPkgs system);
+          model_gen = mkGenerator (mkPkgs system);
         in
         {
-          inherit serde-gen;
-          default = serde-gen;
+          inherit model_gen;
+          default = model_gen;
         }
       );
 
@@ -76,7 +76,7 @@
           default = pkgs.mkShell {
             packages = [
               (toolchainFor pkgs)
-              self.packages.${system}.serde-gen
+              self.packages.${system}.model_gen
             ];
             shellHook = ''
               # Enable Git Hook

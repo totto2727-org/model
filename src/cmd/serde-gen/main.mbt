@@ -6,8 +6,8 @@ const OUTPUT_OPTION = "output"
 
 ///|
 const USAGE =
-  #|Usage: serde-gen --package DIR
-  #|       serde-gen INPUT... --output OUTPUT
+  #|Usage: model_gen --package DIR
+  #|       model_gen INPUT... --output OUTPUT
 
 ///|
 priv suberror CliError {
@@ -43,7 +43,7 @@ async fn run(args : ArrayView[String]) -> Unit {
   let output = @admiral.string(OUTPUT_OPTION)
   let package_dir = @admiral.string(PACKAGE_OPTION)
   let app = @admiral.CliApp::CliApp(
-    name="serde-gen",
+    name="model_gen",
     positionals=[inputs],
     options=[output, package_dir],
     run=Some(ctx => {
@@ -123,21 +123,21 @@ async fn main {
       @sys.exit(2)
     }
     RefuseOverwrite(path) => {
-      eprintln("serde-gen: refusing to overwrite \{path}")
+      eprintln("model_gen: refusing to overwrite \{path}")
       @sys.exit(1)
     }
     NotPackage(path) => {
-      eprintln("serde-gen: \{path}: expected a MoonBit package with moon.pkg")
+      eprintln("model_gen: \{path}: expected a MoonBit package with moon.pkg")
       @sys.exit(1)
     }
     @serde_codegen.GenerateError(message)
     | @garde_codegen.GenerateError(message)
     | @fs.IOError(message) => {
-      eprintln("serde-gen: \{message}")
+      eprintln("model_gen: \{message}")
       @sys.exit(1)
     }
     error => {
-      eprintln("serde-gen: \{error}")
+      eprintln("model_gen: \{error}")
       @sys.exit(1)
     }
   }

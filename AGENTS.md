@@ -6,13 +6,13 @@ The Nix and CI setup comes from [template-moonbit-simple](https://github.com/tot
 The Nix shell puts the packaged native generator on `PATH` for fixture generation and the CLI tests.
 The module defaults to native so the shared `moon test` runs the CLI tests too.
 
-Keep the template's CI triggers and shared action references unless a project requirement calls for a change. The Mooncakes workflow publishes the root Model module on pushes to `main`. It does not publish the separate `serde-gen` module. Do not replace the main-push trigger with a tag or release trigger.
+Keep the template's CI triggers and shared action references unless a project requirement calls for a change. The Mooncakes workflow publishes the root Model module on pushes to `main`. It does not publish the generator module. Do not replace the main-push trigger with a tag or release trigger.
 
 ## Package layout
 
 - `src/serde/`: runtime helpers called by generated JSON implementations.
 - `src/serde-codegen/`: attribute validation and source generation from the official MoonBit AST.
-- `src/garde/` and `src/garde-codegen/`: independent value validation and the `#custom.garde` generator. `serde-gen` emits codecs and validators in one run.
+- `src/garde/` and `src/garde-codegen/`: independent value validation and the `#custom.garde` generator. `model_gen` emits codecs and validators in one run.
 - `src/cmd/serde-gen/`: Admiral command for native, linear Wasm, and JavaScript on Node.js that reads MoonBit source and writes a codec file. It is a separate Moon module so users of the codec library do not need Admiral. `package.nix` uses checksum-pinned Mooncakes archives without changing the local registry cache. Admiral is resolved from the pinned Mooncakes index.
 - `src/test/serde/`: round-trip tests that compile and run the generated codecs.
 - `src/test/garde/`: test both generators together and verify that JSON decoding does not run validation.
@@ -35,8 +35,8 @@ After changing a generator, re-enter the Nix shell to use the rebuilt executable
 Regenerate and format the integration fixtures after changing a generator or an annotated model:
 
 ```sh
-serde-gen --package src/test/serde
-serde-gen --package src/test/garde
+model_gen --package src/test/serde
+model_gen --package src/test/garde
 moon fmt src/test/serde src/test/garde
 ```
 

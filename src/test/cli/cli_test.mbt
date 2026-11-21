@@ -1,6 +1,6 @@
 ///|
 async fn cli(dir : String, argv : ArrayView[String]) -> (Int32, String, String) {
-  let (code, out, err) = @process.collect_output("serde-gen", argv, cwd=dir)
+  let (code, out, err) = @process.collect_output("model_gen", argv, cwd=dir)
   (code, out.text(), err.text())
 }
 
@@ -10,18 +10,18 @@ async fn model(dir : String, file : String, name : String) -> Unit {
 }
 
 ///|
-async test "serde-gen - usage goes to stdout for help and stderr for bad arguments" {
-  let dir = @fs.tmpdir(prefix="serde-gen-test")
+async test "model_gen - usage goes to stdout for help and stderr for bad arguments" {
+  let dir = @fs.tmpdir(prefix="model_gen-test")
   defer @fs.rmdir(dir, recursive=true)
-  let usage = "Usage: serde-gen --package DIR\n       serde-gen INPUT... --output OUTPUT\n"
+  let usage = "Usage: model_gen --package DIR\n       model_gen INPUT... --output OUTPUT\n"
   assert_eq(cli(dir, ["--help"]), (0, usage, ""))
   assert_eq(cli(dir, ["first.mbt"]), (2, "", usage))
   assert_eq(cli(dir, ["--validate", "--package", "."]), (2, "", usage))
 }
 
 ///|
-async test "serde-gen generates codecs and validators together without overwriting handwritten code" {
-  let dir = @fs.tmpdir(prefix="serde-gen-test")
+async test "model_gen generates codecs and validators together without overwriting handwritten code" {
+  let dir = @fs.tmpdir(prefix="model_gen-test")
   defer @fs.rmdir(dir, recursive=true)
   @fs.write_file("\{dir}/moon.pkg", "")
   @fs.write_file(
@@ -61,8 +61,8 @@ async fn guarded_model(dir : String, file : String, name : String) -> Unit {
 }
 
 ///|
-async test "serde-gen refreshes validators without discarding the package codecs" {
-  let dir = @fs.tmpdir(prefix="serde-gen-test")
+async test "model_gen refreshes validators without discarding the package codecs" {
+  let dir = @fs.tmpdir(prefix="model_gen-test")
   defer @fs.rmdir(dir, recursive=true)
   @fs.mkdir("\{dir}/child")
   @fs.write_file("\{dir}/moon.pkg", "")
@@ -108,8 +108,8 @@ async test "serde-gen refreshes validators without discarding the package codecs
 }
 
 ///|
-async test "serde-gen - explicit inputs keep order" {
-  let dir = @fs.tmpdir(prefix="serde-gen-test")
+async test "model_gen - explicit inputs keep order" {
+  let dir = @fs.tmpdir(prefix="model_gen-test")
   defer @fs.rmdir(dir, recursive=true)
   model(dir, "first.mbt", "First")
   model(dir, "second.mbt", "Second")
@@ -127,14 +127,14 @@ async test "serde-gen - explicit inputs keep order" {
 }
 
 ///|
-async test "serde-gen - no overwrite and located errors on invalid sources" {
-  let dir = @fs.tmpdir(prefix="serde-gen-test")
+async test "model_gen - no overwrite and located errors on invalid sources" {
+  let dir = @fs.tmpdir(prefix="model_gen-test")
   defer @fs.rmdir(dir, recursive=true)
   model(dir, "first.mbt", "First")
   @fs.write_file("\{dir}/handwritten.mbt", "handwritten\n")
   assert_eq(
     cli(dir, ["first.mbt", "--output", "handwritten.mbt"]),
-    (1, "", "serde-gen: refusing to overwrite handwritten.mbt\n"),
+    (1, "", "model_gen: refusing to overwrite handwritten.mbt\n"),
   )
   assert_eq(@fs.read_file("\{dir}/handwritten.mbt").text(), "handwritten\n")
   @fs.write_file(
@@ -145,7 +145,7 @@ async test "serde-gen - no overwrite and located errors on invalid sources" {
     "broken.mbt", "--output", "broken.generated.mbt",
   ])
   assert_eq(status, 1)
-  assert_true(err.has_prefix("serde-gen: broken.mbt-3:3"), msg=err)
+  assert_true(err.has_prefix("model_gen: broken.mbt-3:3"), msg=err)
   assert_true(
     err.has_suffix(": path must be a non-empty array of string keys\n"),
     msg=err,
@@ -156,7 +156,7 @@ async test "serde-gen - no overwrite and located errors on invalid sources" {
     "first.mbt", "duplicate.mbt", "--output", "duplicate.generated.mbt",
   ])
   assert_eq(status, 1)
-  assert_true(err.has_prefix("serde-gen: duplicate.mbt-"), msg=err)
+  assert_true(err.has_prefix("model_gen: duplicate.mbt-"), msg=err)
   assert_true(
     err.contains(
       ": duplicate annotated type First (first defined at first.mbt-",
@@ -167,8 +167,8 @@ async test "serde-gen - no overwrite and located errors on invalid sources" {
 }
 
 ///|
-async test "serde-gen - package discovery is ordered and reflects additions, edits, and removals" {
-  let dir = @fs.tmpdir(prefix="serde-gen-test")
+async test "model_gen - package discovery is ordered and reflects additions, edits, and removals" {
+  let dir = @fs.tmpdir(prefix="model_gen-test")
   defer @fs.rmdir(dir, recursive=true)
   let pkg = "\{dir}/my package"
   @fs.mkdir("\{pkg}/child", recursive=true)
