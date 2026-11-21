@@ -1,4 +1,4 @@
-name = "totto2727/serde-gen"
+name = "totto2727/model_gen"
 
 version = "0.1.0"
 
@@ -8,7 +8,7 @@ repository = "https://github.com/totto2727-org/model"
 
 license = "MIT"
 
-description = "Generate MoonBit serialization and deserialization code"
+description = "Generate MoonBit JSON codecs and validators"
 
 preferred_target = "native"
 

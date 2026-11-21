@@ -13,7 +13,7 @@ Keep the template's CI triggers and shared action references unless a project re
 - `src/serde/`: runtime helpers called by generated JSON implementations.
 - `src/serde-codegen/`: attribute validation and source generation from the official MoonBit AST.
 - `src/garde/` and `src/garde-codegen/`: independent value validation and the `#custom.garde` generator. `model_gen` emits codecs and validators in one run.
-- `src/cmd/serde-gen/`: Admiral command for native, linear Wasm, and JavaScript on Node.js that reads MoonBit source and writes a codec file. It is a separate Moon module so users of the codec library do not need Admiral. `package.nix` uses checksum-pinned Mooncakes archives without changing the local registry cache. Admiral is resolved from the pinned Mooncakes index.
+- `src/cmd/model_gen/`: Admiral command for native, linear Wasm, and JavaScript on Node.js that reads MoonBit source and writes a codec file. It is a separate Moon module so users of the codec library do not need Admiral. `package.nix` uses checksum-pinned Mooncakes archives without changing the local registry cache. Admiral is resolved from the pinned Mooncakes index.
 - `src/test/serde/`: round-trip tests that compile and run the generated codecs.
 - `src/test/garde/`: test both generators together and verify that JSON decoding does not run validation.
 
@@ -27,8 +27,8 @@ moon test
 moon test --target js
 ```
 
-To build the CLI from source, create a Moon workspace that contains the Model library and `src/cmd/serde-gen`. Moon fetches Admiral from Mooncakes.
-From the Model checkout, run `moon build --target wasm --release ./src/cmd/serde-gen` for linear Wasm or `moon build --target js --release ./src/cmd/serde-gen` for Node.js.
+To build the CLI from source, create a Moon workspace that contains the Model library and `src/cmd/model_gen`. Moon fetches Admiral from Mooncakes.
+From the Model checkout, run `moon build --target wasm --release ./src/cmd/model_gen` for linear Wasm or `moon build --target js --release ./src/cmd/model_gen` for Node.js.
 The Nix package remains native.
 
 After changing a generator, re-enter the Nix shell to use the rebuilt executable.
@@ -44,7 +44,7 @@ moon fmt src/test/serde src/test/garde
 Only these packages' generated fixtures are tracked, so the generated changes can be reviewed with the models.
 CI tests the committed fixtures.
 
-Run `moon fmt` after editing MoonBit code and `(cd src/cmd/serde-gen && moon fmt)` after editing the CLI.
+Run `moon fmt` after editing MoonBit code and `(cd src/cmd/model_gen && moon fmt)` after editing the CLI.
 Run `moon info` to inspect public signatures locally.
 Do not commit generated package interfaces.
 To change a wire-format behavior, update the generator and check it through a compiled fixture, not just through a source snapshot.

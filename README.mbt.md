@@ -133,7 +133,7 @@ Use the Mooncakes version selector to read the documentation for the version you
 - [Serde attributes](https://mooncakes.io/docs/totto2727/model/serde-codegen): `#custom.serde` examples and generated codec excerpts.
 - [Garde API and attributes](https://mooncakes.io/docs/totto2727/model/garde): Validation types, `#custom.garde` examples, and generated validator excerpts.
 
-For manual generation and command-line options, see the [`model_gen` README](https://github.com/totto2727-org/model/tree/main/src/cmd/serde-gen).
+For manual generation and command-line options, see the [`model_gen` README](https://github.com/totto2727-org/model/tree/main/src/cmd/model_gen).
 
 ## Development
 

@@ -62,53 +62,14 @@ For the JSON example above, also import `moonbitlang/core/json` and `totto2727/m
 
 ## Typed model conversion
 
-On a record without a validation context, `#custom.garde` generates `Validate`, a second record named `ModelDecoded`, and methods to convert between the two records.
-Use `#custom.garde(validate_only)` to generate validation without the decoded type or conversion methods.
-For a private record used only for validation, this also avoids unused-code warnings from the generated methods.
-Records with a validation context, tuple structs, and enums generate validation only.
-Keep `#custom.serde` on the original record so that Serde reads and writes its wire representation.
+On a record without a validation context, `#custom.garde` generates `Validate` and a `ModelDecoded` type. The original record remains the wire type.
+Use `#custom.garde(validate_only)` to skip conversions. Contextual records, tuple structs, and enums generate validation only.
 
-For the `Endpoint` model in [Usage](#usage), Garde generates a public type that callers cannot construct with a record literal outside the model package.
-Use its constructor to build a decoded record from typed fields without going through JSON or the wire model:
+- `to_decoded()` validates before converting. `to_encoded()` converts back and validates the result.
+- The decoded constructor takes typed fields without validating them. Use labels when it takes two or more arguments.
+- With a Serde encoder, `to_json()` returns `Json` on the wire record without validation and `Result[Json, @garde.Report]` on the decoded record after validation.
 
-```mbt nocheck
-///|
-pub struct EndpointDecoded {
-  url : @garde.Url
-}
-
-///|
-pub fn EndpointDecoded::EndpointDecoded(url : @garde.Url) -> EndpointDecoded {
-  { url, }
-}
-```
-
-For records with two or more fields, pass all constructor arguments by label.
-The constructor assembles the typed fields without running the wire validator.
-`to_decoded()` runs the original record validator before converting fields.
-`to_encoded()` converts back to the original record and validates the result, so edits or normalization can cause validation to fail.
-The original record is the encoded type; there is no separate `EndpointEncoded` type.
-Use `validate()` on it if you need validation without conversion.
-
-When Serde generates a JSON encoder, both records expose `to_json()`.
-The original record returns `Json` without validation, just like calling `ToJson::to_json` directly.
-The decoded record returns `Result[Json, @garde.Report]` because it calls `to_encoded()` before serialization.
-Neither conversion method requires a codec object or initialization.
-
-Use Garde for constraints that the serialized data itself can satisfy and for conversion to stricter types.
-Pass the decoded record to domain code for checks that depend on application state, configuration, or other external data.
-Use Serde's `decode_only` to make a JSON input-only model without opting out of Garde's decoded type.
-
-A direct `url` rule converts a `String` to MoonBit Stack's `Url`, re-exported as `@garde.Url`.
-A direct `ip`, `ipv4`, or `ipv6` rule converts a `String` to MoonBit Stack's `Addr`, re-exported as `@garde.Addr`.
-A direct `phone_number` rule converts a `String` to dialnumber's `PhoneNumber`, re-exported as `@garde.PhoneNumber`.
-Encoding uses `PhoneNumber::to_string`, which keeps the country calling code and any extension.
-Optional fields preserve `None` and convert only `Some`.
-Other fields keep their original types, including nested fields validated with `dive` or `inner`.
-Garde generates `ModelDecoded` even when no field changes type.
-These formatters can normalize the spelling, so encoding does not guarantee the exact original text.
-A successful decode parses these fields once to validate them and once to construct their typed values.
-For custom typed conversions, use `validate_only` and write conversion methods for your models.
+Direct URL, IP, and phone rules convert strings to `@garde.Url`, `@garde.Addr`, and `@garde.PhoneNumber`. Encoding can normalize the text.
 
 ## API
 
