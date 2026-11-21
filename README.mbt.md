@@ -106,13 +106,22 @@ rule(name: "model_gen", command: "model_gen $input --output $output")
 dev_build(
   rule: "model_gen",
   input: "endpoint.mbt",
-  output: "serde.generated.mbt",
+  output: "endpoint.generated.mbt",
 )
 ```
 
 Run `moon check`, `moon build`, or `moon test` as usual. Moon runs `model_gen` before it compiles the package.
 Use paths relative to `moon.pkg` in `input` and `output`.
-For multiple model files, list them in `input`, for example `input: ["endpoint.mbt", "contact.mbt"]`.
+Add a separate `dev_build` entry with a distinct output for each annotated source file in the package.
+For example, if the package also contains `contact.mbt`, add this entry to the same `moon.pkg`:
+
+```mbt nocheck
+dev_build(rule: "model_gen", input: "contact.mbt", output: "contact.generated.mbt")
+```
+
+Do not group model files in one `input` list: separate entries let Moon regenerate only the changed file's output and reuse the others.
+The generator does not scan the directory for additional models.
+If you remove a model file, also remove its `dev_build` entry and generated output.
 The same rule generates both Serde codecs and Garde validators. For Garde models, also import `totto2727/model/garde`.
 See MoonBit's [package configuration](https://github.com/moonbitlang/moonbit-docs/blob/main/next/toolchain/moon/package.md) for more about `dev_build`.
 

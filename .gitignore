@@ -11,4 +11,5 @@ _build/
 *.generated.mbt
 !/src/test/serde/serde.generated.mbt
 !/src/test/garde/serde.generated.mbt
+!/src/test/garde/codec_model.generated.mbt
 pkg.generated.mbti

@@ -1,6 +1,6 @@
 # model_gen
 
-`model_gen` scans a MoonBit package for `#custom.serde` and `#custom.garde` attributes.
+`model_gen` reads `#custom.serde` and `#custom.garde` attributes from the MoonBit source files you list.
 It generates JSON codecs and validators without decoding or validating values.
 
 ## Usage
@@ -9,16 +9,17 @@ After [setup](#setup), put the annotated types in the `src/models` package.
 From the module root, run:
 
 ```sh
-model_gen --package src/models && moon check
+model_gen src/models/endpoint.mbt --output src/models/endpoint.generated.mbt
+moon check
 ```
 
-The generator writes `src/models/serde.generated.mbt`.
+The generator writes `src/models/endpoint.generated.mbt`.
 `moon check` checks the generated code and the other source files in the module.
-Run the generator again after you add, change, or remove models.
+For multiple model files, use a separate [`dev_build` entry](https://github.com/totto2727-org/model#generate-code-with-dev_build) with its own output for each file. Moon can then reuse the outputs for unchanged files.
 
 ## Key features
 
-- Find annotated source files without listing them on the command line.
+- Process only the listed files, in the order you give them.
 - Generate JSON codecs and validators in the same file in one run.
 - Report invalid attributes with the source file and location.
 
@@ -61,16 +62,13 @@ For annotated models and generated code, see [Serde attributes](https://mooncake
 
 ```console
 $ model_gen --help
-Usage: model_gen --package DIR
-       model_gen INPUT... --output OUTPUT
+Usage: model_gen INPUT... --output OUTPUT
 ```
 
-`--package DIR` reads `.mbt` files directly in `DIR` in filename order.
-It skips hidden files, generated files, test files, and files with backend suffixes.
+Pass one or more `.mbt` source files from the same MoonBit package.
+The generator does not discover files from directories.
 An attribute name in a comment or string does not generate code.
 
-Use `INPUT... --output OUTPUT` to select specific source files, such as files for one backend.
-This form also generates both codecs and validators.
 Keep the output in the same MoonBit package as the input types.
 
 The generator writes the output on every successful run, even when the content is the same.
@@ -81,7 +79,7 @@ For duplicate annotated types, the error identifies both definitions.
 | --- | --- |
 | `0` | The generator succeeded or printed help. |
 | `1` | A file or generation error occurred. |
-| `2` | The arguments do not match either form of the command. |
+| `2` | The arguments do not match the command syntax. |
 
 The generator writes help to standard output and errors to standard error.
 

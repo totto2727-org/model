@@ -1,79 +1,46 @@
 ///|
-const PACKAGE_OPTION = "package"
-
-///|
 const OUTPUT_OPTION = "output"
 
 ///|
-const USAGE =
-  #|Usage: model_gen --package DIR
-  #|       model_gen INPUT... --output OUTPUT
+const USAGE = "Usage: model_gen INPUT... --output OUTPUT"
 
 ///|
 priv suberror CliError {
   Usage
   RefuseOverwrite(String)
-  NotPackage(String)
-}
-
-///|
-priv enum GenerateOptions {
-  Package(String)
-  Files(ReadOnlyArray[String], String)
 }
 
 ///|
 async fn run(args : ArrayView[String]) -> Unit {
-  // Preserve the existing grammar and usage status before core argparse can exit.
-  let package_flag = "--" + PACKAGE_OPTION
-  let output_flag = "--" + OUTPUT_OPTION
-  let argv = match args {
-    [flag, directory] if flag == package_flag && !directory.is_empty() =>
-      [package_flag + "=" + directory]
-    [.. inputs, flag, output] if flag == output_flag &&
-      !inputs.is_empty() &&
-      !output.is_empty() &&
-      !output.has_prefix("-") &&
-      inputs.all(input => {
-        !input.is_empty() && !input.has_prefix("-") && input != output
-      }) => args.to_owned()
-    _ => raise Usage
+  guard args is [.. files, flag, target] &&
+    flag == "--" + OUTPUT_OPTION &&
+    !files.is_empty() &&
+    !target.is_empty() &&
+    !target.has_prefix("-") &&
+    files.all(file => {
+      !file.is_empty() && !file.has_prefix("-") && file != target
+    }) else {
+    raise Usage
   }
   let inputs = @admiral.position_strings("INPUT")
   let output = @admiral.string(OUTPUT_OPTION)
-  let package_dir = @admiral.string(PACKAGE_OPTION)
   let app = @admiral.CliApp::CliApp(
     name="model_gen",
     positionals=[inputs],
-    options=[output, package_dir],
+    options=[output],
     run=Some(ctx => {
-      let options : GenerateOptions = match ctx.get_string(package_dir) {
-        Some(directory) => Package(directory)
-        None => Files(ctx.get_strings(inputs), ctx.get_string_required(output))
-      }
-      match options {
-        Package(directory) => generate_package(directory)
-        Files(inputs, output) => generate_files(inputs, output)
-      }
+      generate(ctx.get_strings(inputs), ctx.get_string_required(output))
     }),
   )
-  app.run(argv=Some(argv))
+  app.run(argv=Some(args.to_owned()))
 }
 
 ///|
-fn generate_files(
-  inputs : ReadOnlyArray[String],
-  output : String,
-) -> Unit raise {
+fn generate(inputs : ReadOnlyArray[String], output : String) -> Unit raise {
   let sources : Array[(String, String)] = []
   for input in inputs {
     sources.push((input, @fs.read_file_to_string(input)))
   }
-  generate(sources, output)
-}
-
-///|
-fn generate(sources : Array[(String, String)], output : String) -> Unit raise {
   // Filter on the contiguous lexer token. Only the AST confirms an attribute.
   let codecs = @serde_codegen.generate_many(
     sources.filter(source => source.1.contains("#custom.serde")),
@@ -124,10 +91,6 @@ async fn main {
     }
     RefuseOverwrite(path) => {
       eprintln("model_gen: refusing to overwrite \{path}")
-      @sys.exit(1)
-    }
-    NotPackage(path) => {
-      eprintln("model_gen: \{path}: expected a MoonBit package with moon.pkg")
       @sys.exit(1)
     }
     @serde_codegen.GenerateError(message)

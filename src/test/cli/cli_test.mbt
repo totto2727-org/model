@@ -13,22 +13,23 @@ async fn model(dir : String, file : String, name : String) -> Unit {
 async test "model_gen - usage goes to stdout for help and stderr for bad arguments" {
   let dir = @fs.tmpdir(prefix="model_gen-test")
   defer @fs.rmdir(dir, recursive=true)
-  let usage = "Usage: model_gen --package DIR\n       model_gen INPUT... --output OUTPUT\n"
+  let usage = "Usage: model_gen INPUT... --output OUTPUT\n"
   assert_eq(cli(dir, ["--help"]), (0, usage, ""))
   assert_eq(cli(dir, ["first.mbt"]), (2, "", usage))
-  assert_eq(cli(dir, ["--validate", "--package", "."]), (2, "", usage))
+  assert_eq(cli(dir, ["--package", "."]), (2, "", usage))
+  assert_eq(cli(dir, ["--output", "output.mbt"]), (2, "", usage))
 }
 
 ///|
 async test "model_gen generates codecs and validators together without overwriting handwritten code" {
   let dir = @fs.tmpdir(prefix="model_gen-test")
   defer @fs.rmdir(dir, recursive=true)
-  @fs.write_file("\{dir}/moon.pkg", "")
   @fs.write_file(
     "\{dir}/models.mbt",
     "#custom.serde\n#custom.garde\nstruct Both {\n  #custom.garde(range(min=\"0\"))\n  value : Int\n}\n",
   )
-  assert_eq(cli(dir, ["--package", "."]), (0, "", ""))
+  let argv = ["models.mbt", "--output", "serde.generated.mbt"]
+  assert_eq(cli(dir, argv[:]), (0, "", ""))
   let output = "\{dir}/serde.generated.mbt"
   let generated = @fs.read_file(output).text()
   assert_true(generated.contains("impl ToJson for Both"))
@@ -37,16 +38,11 @@ async test "model_gen generates codecs and validators together without overwriti
   assert_false(@fs.exists("\{dir}/garde.generated.mbt"))
   let modified = @fs.mtime(output)
   @async.sleep(1100)
-  assert_eq(cli(dir, ["--package", "."]), (0, "", ""))
+  assert_eq(cli(dir, argv[:]), (0, "", ""))
   assert_eq(@fs.read_file(output).text(), generated)
   assert_false(@fs.mtime(output) == modified)
-  assert_eq(
-    cli(dir, ["models.mbt", "--output", "explicit.generated.mbt"]),
-    (0, "", ""),
-  )
-  assert_eq(@fs.read_file("\{dir}/explicit.generated.mbt").text(), generated)
   @fs.write_file(output, "handwritten\n")
-  let (status, _, err) = cli(dir, ["--package", "."])
+  let (status, _, err) = cli(dir, argv[:])
   assert_eq(status, 1)
   assert_true(err.contains("refusing to overwrite"), msg=err)
   assert_eq(@fs.read_file(output).text(), "handwritten\n")
@@ -61,39 +57,39 @@ async fn guarded_model(dir : String, file : String, name : String) -> Unit {
 }
 
 ///|
-async test "model_gen refreshes validators without discarding the package codecs" {
+async test "model_gen refreshes validators using only the listed files" {
   let dir = @fs.tmpdir(prefix="model_gen-test")
   defer @fs.rmdir(dir, recursive=true)
-  @fs.mkdir("\{dir}/child")
-  @fs.write_file("\{dir}/moon.pkg", "")
-  @fs.write_file("\{dir}/child/moon.pkg", "")
   model(dir, "codec.mbt", "CodecOnly")
   guarded_model(dir, "original.mbt", "Original")
-  for
-    file in [
-      "child/nested.mbt", "ignored_test.mbt", "ignored.js.mbt", "already.generated.mbt",
-    ] {
-    guarded_model(dir, file, "Ignored")
-  }
-  let argv = ["--package", "."]
+  // The duplicate type would fail generation if the CLI scanned sibling files.
+  guarded_model(dir, "unlisted.mbt", "Original")
   let output = "\{dir}/serde.generated.mbt"
-  assert_eq(cli(dir, argv[:]), (0, "", ""))
+  assert_eq(
+    cli(dir, ["codec.mbt", "original.mbt", "--output", "serde.generated.mbt"]),
+    (0, "", ""),
+  )
   let original = @fs.read_file(output).text()
   assert_true(original.contains("impl @garde.Validate for Original "))
-  assert_false(original.contains("Ignored"))
   assert_true(original.contains("impl ToJson for CodecOnly "))
 
   guarded_model(dir, "new.mbt", "Added")
   guarded_model(dir, "original.mbt", "Edited")
-  assert_eq(cli(dir, argv[:]), (0, "", ""))
+  assert_eq(
+    cli(dir, [
+      "codec.mbt", "original.mbt", "new.mbt", "--output", "serde.generated.mbt",
+    ]),
+    (0, "", ""),
+  )
   let updated = @fs.read_file(output).text()
   assert_true(updated.contains("impl @garde.Validate for Added "))
   assert_true(updated.contains("impl @garde.Validate for Edited "))
   assert_false(updated.contains("Original"))
 
-  @fs.remove("\{dir}/new.mbt")
-  @fs.remove("\{dir}/original.mbt")
-  assert_eq(cli(dir, argv[:]), (0, "", ""))
+  assert_eq(
+    cli(dir, ["codec.mbt", "--output", "serde.generated.mbt"]),
+    (0, "", ""),
+  )
   let codecs = @fs.read_file(output).text()
   assert_true(codecs.contains("impl ToJson for CodecOnly "))
   assert_false(codecs.contains("@garde.Validate"))
@@ -101,7 +97,9 @@ async test "model_gen refreshes validators without discarding the package codecs
     "\{dir}/broken.mbt",
     "#custom.garde(field(index=\"0\", required))\nstruct Broken(Int)\n",
   )
-  let (status, _, err) = cli(dir, argv[:])
+  let (status, _, err) = cli(dir, [
+    "codec.mbt", "broken.mbt", "--output", "serde.generated.mbt",
+  ])
   assert_eq(status, 1)
   assert_true(err.contains("required expects Option"), msg=err)
   assert_eq(@fs.read_file(output).text(), codecs)
@@ -112,8 +110,8 @@ async test "model_gen - explicit inputs keep order" {
   let dir = @fs.tmpdir(prefix="model_gen-test")
   defer @fs.rmdir(dir, recursive=true)
   model(dir, "first.mbt", "First")
-  model(dir, "second.mbt", "Second")
-  let argv = ["first.mbt", "second.mbt", "--output", "output.mbt"]
+  model(dir, "second model.mbt", "Second")
+  let argv = ["first.mbt", "second model.mbt", "--output", "output.mbt"]
   assert_eq(cli(dir, argv[:]), (0, "", ""))
   let path = "\{dir}/output.mbt"
   let before = @fs.read_file(path).text()
@@ -167,45 +165,15 @@ async test "model_gen - no overwrite and located errors on invalid sources" {
 }
 
 ///|
-async test "model_gen - package discovery is ordered and reflects additions, edits, and removals" {
+async test "model_gen - an explicit input without annotations emits only the header" {
   let dir = @fs.tmpdir(prefix="model_gen-test")
   defer @fs.rmdir(dir, recursive=true)
-  let pkg = "\{dir}/my package"
-  @fs.mkdir("\{pkg}/child", recursive=true)
-  @fs.write_file("\{pkg}/moon.pkg", "")
-  @fs.write_file("\{pkg}/child/moon.pkg", "")
-  model(pkg, "z.mbt", "Second")
-  model(pkg, "a.mbt", "First")
-  for
-    file in [
-      "child/ignored.mbt", "ignored.generated.mbt", "ignored_test.mbt", "ignored.js.mbt",
-    ] {
-    model(pkg, file, "First")
-  }
-  @fs.write_file("\{pkg}/unmarked.mbt", "not valid MoonBit, and has no marker")
-  assert_eq(
-    cli(dir, [
-      "my package/a.mbt", "my package/z.mbt", "--output", "expected.generated.mbt",
-    ]),
-    (0, "", ""),
-  )
-  let argv = ["--package", "my package"]
-  let output = "\{pkg}/serde.generated.mbt"
+  model(dir, "model.mbt", "First")
+  let argv = ["model.mbt", "--output", "serde.generated.mbt"]
+  let output = "\{dir}/serde.generated.mbt"
   assert_eq(cli(dir, argv[:]), (0, "", ""))
-  assert_eq(
-    @fs.read_file(output).text(),
-    @fs.read_file("\{dir}/expected.generated.mbt").text(),
-  )
-  model(pkg, "a.mbt", "Edited")
-  model(pkg, "new.mbt", "First")
-  @fs.remove("\{pkg}/z.mbt")
-  assert_eq(cli(dir, argv[:]), (0, "", ""))
-  let updated = @fs.read_file(output).text()
-  assert_true(updated.contains("impl ToJson for Edited "))
-  assert_true(updated.contains("impl ToJson for First "))
-  assert_false(updated.contains("impl ToJson for Second "))
-  @fs.remove("\{pkg}/a.mbt")
-  @fs.remove("\{pkg}/new.mbt")
+  assert_true(@fs.read_file(output).text().contains("impl ToJson for First "))
+  @fs.write_file("\{dir}/model.mbt", "struct First(Int)\n")
   assert_eq(cli(dir, argv[:]), (0, "", ""))
   assert_eq(
     @fs.read_file(output).text(),

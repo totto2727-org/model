@@ -35,12 +35,13 @@ After changing a generator, re-enter the Nix shell to use the rebuilt executable
 Regenerate and format the integration fixtures after changing a generator or an annotated model:
 
 ```sh
-model_gen --package src/test/serde
-model_gen --package src/test/garde
+model_gen src/test/serde/model.mbt --output src/test/serde/serde.generated.mbt
+model_gen src/test/garde/model.mbt --output src/test/garde/serde.generated.mbt
+model_gen src/test/garde/codec_model.mbt --output src/test/garde/codec_model.generated.mbt
 moon fmt src/test/serde src/test/garde
 ```
 
-Only these packages' `serde.generated.mbt` files are tracked, so the generated changes can be reviewed with the models.
+Only these packages' generated fixtures are tracked, so the generated changes can be reviewed with the models.
 CI tests the committed fixtures.
 
 Run `moon fmt` after editing MoonBit code and `(cd src/cmd/serde-gen && moon fmt)` after editing the CLI.
