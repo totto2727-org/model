@@ -206,9 +206,9 @@ pub(all) struct NumericRanges {
   huge : @bigint.BigInt
   #custom.garde(range(min="1.00000002", max="1.00000001"))
   single : Float
-  #custom.garde(range(min="-1.25e-1", max="2_000.0"))
+  #custom.garde(range(min="-0.125F", max="2_000.0"))
   double : Double
-  #custom.garde(range(min="0x10", max="0x20"))
+  #custom.garde(range(min="0x10L", max="0x20"))
   base16 : Int32
 }
 

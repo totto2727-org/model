@@ -2,6 +2,7 @@ import {
   "moonbitlang/core/json",
   "moonbitlang/core/list",
   "moonbitlang/core/string",
+  "moonbitlang/lexer",
   "moonbitlang/parser",
   "moonbitlang/parser/attribute",
   "moonbitlang/parser/fmt",

@@ -863,8 +863,8 @@ pub impl @garde.Validate for NumericRanges with fn collect(
     let garde__path = garde__path.field("huge")
     if @garde.range(
         garde__value,
-        Some(1000000000000000000000000000001N),
-        Some(1000000000000000000000000000001N),
+        Some(1000000000000000000000000000001),
+        Some(1000000000000000000000000000001),
       )
       is Some(message) {
       garde__report.add(garde__path, message)
@@ -881,8 +881,7 @@ pub impl @garde.Validate for NumericRanges with fn collect(
   {
     let garde__value = garde__self.double
     let garde__path = garde__path.field("double")
-    if @garde.range(garde__value, Some(-1.25e-1), Some(2_000.0))
-      is Some(message) {
+    if @garde.range(garde__value, Some(-0.125), Some(2_000.0)) is Some(message) {
       garde__report.add(garde__path, message)
     }
   }

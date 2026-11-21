@@ -18,6 +18,7 @@ preferred_target = "native"
 
 import {
   "moonbitlang/async@0.22.4",
+  "moonbitlang/lexer@0.4.5",
   "moonbitlang/parser@0.4.9",
   "moonbitlang/x@0.5.7",
   "moonbitstack/moonip@0.2.0",
