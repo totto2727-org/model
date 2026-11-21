@@ -5,92 +5,46 @@ Run validation explicitly on decoded or manually constructed values.
 
 ## Usage
 
-### Validate after decoding
-
-After [setup](#setup), put this model in `src/models/signup.mbt`.
-Add both attributes when a type needs a JSON codec and a validator.
+After [setup](#setup), define the JSON model in `src/models/endpoint.mbt`.
+Use `codec` to generate the `EndpointDecoded` type with a typed URL field.
 
 ```mbt nocheck
 ///|
 #custom.serde
-#custom.garde
-pub(all) struct Signup {
-  #custom.serde(rename="displayName")
-  #custom.garde(length(min="3"))
-  name : String
-  #custom.garde(length(min="1"))
-  email : String
-  #custom.garde(inner(length(min="1")))
-  roles : Array[String]
+#custom.garde(codec)
+pub(all) struct Endpoint {
+  #custom.serde(rename="endpointUrl")
+  #custom.garde(url)
+  url : String
 }
 ```
 
-From the module root, run:
-
-```sh
-serde-gen --package src/models && moon check
-```
-
-The command writes `src/models/serde.generated.mbt`.
-Put this function in `src/models/signup_check.mbt` to decode the input and then validate it:
+Put this test in `src/models/endpoint_wbtest.mbt`.
 
 ```mbt nocheck
 ///|
-fn check_signup(input : Json) -> Result[Unit, @garde.Report] raise {
-  let signup : Signup = @json.from_json(input)
-  @garde.validate(signup)
+test "round-trip an endpoint with Garde" {
+  let input : Json = { "endpointUrl": "https://EXAMPLE.org:443/docs" }
+  let wire : Endpoint = @json.from_json(input)
+  guard @garde.validate(wire) is Ok(_) else { fail("invalid endpoint") }
+  let codec = Endpoint::codec()
+  guard @garde.decode(wire, codec) is Ok(decoded) else {
+    fail("could not decode endpoint")
+  }
+  guard @garde.encode(decoded, codec) is Ok(encoded) else {
+    fail("could not encode endpoint")
+  }
+  assert_eq(ToJson::to_json(encoded), {
+    "endpointUrl": "https://example.org/docs",
+  })
 }
 ```
 
-Decoding succeeds for this input:
-
-```json
-{
-  "displayName": "x",
-  "email": "",
-  "roles": [""]
-}
-```
-
-Validation then reports `name`, `email`, and `roles[0]`.
-A missing `email` fails during decoding because its type is `String`.
-
-### Complete generated validator
-
-This is the complete `@garde.Validate` implementation for `Signup`.
-For the JSON codec, see [Serde attributes](https://mooncakes.io/docs/totto2727/serde/serde-codegen).
-
-```mbt nocheck
-///|
-pub impl @garde.Validate for Signup with fn collect(
-  garde_self,
-  garde_report,
-  garde_path,
-) {
-  {
-    let garde_value = garde_self.name
-    let garde_path = garde_path.field("name")
-    if @garde.length(garde_value, Some(3), None) is Some(message) {
-      garde_report.add(garde_path, message)
-    }
-  }
-  {
-    let garde_value = garde_self.email
-    let garde_path = garde_path.field("email")
-    if @garde.length(garde_value, Some(1), None) is Some(message) {
-      garde_report.add(garde_path, message)
-    }
-  }
-  let garde_value = garde_self.roles
-  let garde_path = garde_path.field("roles")
-  for garde_index, garde_value in garde_value {
-    let garde_path = garde_path.index(garde_index)
-    if @garde.length(garde_value, Some(1), None) is Some(message) {
-      garde_report.add(garde_path, message)
-    }
-  }
-}
-```
+`@json.from_json` reads the wire model with the generated Serde implementation.
+`@garde.validate` checks the model without converting it.
+`@garde.decode` also validates, so omit the separate validation call if you only need the typed model.
+`@garde.encode` converts the typed model back to `Endpoint` and validates it.
+The URL formatter normalizes the host and removes the default port before `ToJson::to_json` writes the final JSON value.
 
 ## Key features
 
@@ -114,32 +68,7 @@ For the JSON example above, also import `moonbitlang/core/json` and `totto2727/s
 Use `#custom.garde(codec)` on a record to generate a second record named `ModelDecoded`.
 Keep `#custom.serde` on the original record so that Serde reads and writes its wire representation.
 
-```mbt nocheck
-///|
-#custom.serde
-#custom.garde(codec)
-pub(all) struct Endpoint {
-  #custom.garde(url)
-  url : String
-}
-```
-
-Run the same generator command as in [Usage](#usage).
-Pass the generated `Endpoint::codec()` to both functions:
-
-```mbt nocheck
-///|
-fn decode_endpoint(value : Endpoint) -> Result[EndpointDecoded, @garde.Report] {
-  @garde.decode(value, Endpoint::codec())
-}
-
-///|
-fn encode_endpoint(value : EndpointDecoded) -> Result[Endpoint, @garde.Report] {
-  @garde.encode(value, Endpoint::codec())
-}
-```
-
-The generator keeps the existing `Validate` implementation and adds this type and these trait implementations:
+For the `Endpoint` model in [Usage](#usage), the generator keeps the `Validate` implementation and adds this type and these trait implementations:
 
 ```mbt nocheck
 ///|
@@ -408,16 +337,16 @@ pub impl @garde.Validate for ContactFormats with fn collect(
 
 | Rule | Accepted input and limits |
 | --- | --- |
-| `email` | A bare mailbox parsed by [MoonMail](https://mooncakes.io/docs/moonbitstack/moonmail), with Garde's limits of 64 bytes for the local part and 255 for the domain. |
+| `email` | A bare email address parsed by [MoonMail](https://mooncakes.io/docs/moonbitstack/moonmail), without a display name, angle brackets, comments, or a group. |
 | `url` | An absolute URL, including schemes such as `mailto:` and `file:`. Uses [MoonURL](https://mooncakes.io/docs/moonbitstack/moonurl) in WHATWG mode. |
 | `ip`, `ipv4`, `ipv6` | Bare IPv4 or IPv6 text, without a port, brackets, or zone identifier. IPv4 uses four decimal octets. Uses [MoonIP](https://mooncakes.io/docs/moonbitstack/moonip). |
 | `phone_number` | An international number with a country calling code. Uses [dialnumber](https://mooncakes.io/docs/sssssurf/dialnumber) for numbering-plan checks and does not assume a default region. |
 
-These rules do not contact an external service. A valid email or telephone number is not evidence that the address or number is assigned or reachable.
+These rules do not contact an external service.
+A valid email address or telephone number is not evidence that it is assigned or reachable.
 
-Unlike Rust Garde's HTML-based rule, the mailbox parser rejects consecutive unquoted dots and accepts a quoted local part such as `"a@b"@example.org`. Display names, comments, and address lists are not accepted. Use a DNS name or a bare IP address in brackets for the domain.
-
-For Unicode domains, use `#custom.garde(email(international))`. The local part must still be ASCII. The generated check calls `@garde.email(garde_value, international=true)`, which uses MoonURL's IDNA handling when the domain is not already valid.
+MoonMail determines which address syntax to accept, including Unicode and quoted local parts such as `"a@b"@example.org`.
+Garde does not add DNS, IDNA, or length checks.
 
 ### `pattern`
 

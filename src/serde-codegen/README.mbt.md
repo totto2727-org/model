@@ -5,15 +5,8 @@ These traits control how a MoonBit type reads and writes JSON.
 
 ## Usage
 
-After [setup](#setup), put the [`Profile` record](#record-options) in `src/models/profile.mbt`.
-From the module root, run:
-
-```sh
-serde-gen --package src/models && moon check
-```
-
-The command writes `src/models/serde.generated.mbt`.
-See the [JSON input and output](#json-input-and-output) and the [complete generated codec](#complete-generated-codec) for `Profile`.
+See [Serde Usage](https://github.com/totto2727-org/serde#usage) for a complete example that reads and writes the same `Endpoint` model with `@json.from_json` and `ToJson::to_json`.
+For more field options, see the [`Profile` record](#record-options) and its [complete generated codec](#complete-generated-codec).
 
 ## Key features
 

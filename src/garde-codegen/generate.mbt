@@ -18,7 +18,6 @@ priv enum Rule {
   Custom(String)
   CustomWith(String)
   Text(String, String?)
-  EmailInternational
   Matches(String)
   PatternWith(String)
   When(String, Bool, Array[Rule])
@@ -212,12 +211,6 @@ fn parse_rules(
       }
       Expr(Apply({ qual: None, name: "inner", }, inner)) =>
         Inner(parse_rules(inner, at))
-      Expr(
-        Apply(
-          { qual: None, name: "email", },
-          More(Expr(Ident({ qual: None, name: "international", })), tail=Empty),
-        ),
-      ) => EmailInternational
       Expr(
         Ident(
           {
@@ -477,7 +470,6 @@ fn emit_rule(
         Some(literal) => "@garde.\{rule}(\{p}value, \{literal})"
         None => "@garde.\{rule}(\{p}value)"
       }
-    EmailInternational => "@garde.email(\{p}value, international=true)"
     Dive => {
       require_bound(emitter, ty, "Validate", nested=true)
       out.write_string(

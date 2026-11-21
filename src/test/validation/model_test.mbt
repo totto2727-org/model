@@ -81,7 +81,7 @@ fn[T : @garde.Validate] invalid_paths(value : T) -> Array[String] raise {
 ///|
 test "contact rules check formats only after a successful decode" {
   let contact : @validation.ContactDetails = @json.from_json({
-    "email": "aki@example.com",
+    "email": "ü@bücher.example",
     "website": "https://example.com/profile",
     "addresses": ["192.0.2.20", "2001:db8::1"],
     "v4": "192.0.2.20",

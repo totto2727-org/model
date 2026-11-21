@@ -7,36 +7,30 @@ This project is inspired by Rust's [Serde](https://serde.rs/) for serialization 
 
 ## Usage
 
-After [setup](#setup), put this code in `src/models/profile.mbt`:
+After [setup](#setup), define the JSON model in `src/models/endpoint.mbt`.
 
 ```mbt nocheck
 ///|
-#custom.serde(rename_all="camelCase")
-struct Profile {
-  display_name : String
-  #custom.serde(skip_serializing_if="Option::is_none")
-  avatar_url : String?
+#custom.serde
+pub(all) struct Endpoint {
+  #custom.serde(rename="endpointUrl")
+  url : String
 }
 ```
 
-Put this test in `src/models/profile_wbtest.mbt`:
+Put this test in `src/models/endpoint_wbtest.mbt`.
 
 ```mbt nocheck
 ///|
-test "encode a profile without an avatar" {
-  let profile : Profile = @json.from_json({ "displayName": "Aki" })
-  assert_eq(ToJson::to_json(profile), { "displayName": "Aki" })
+test "round-trip an endpoint with Serde" {
+  let input : Json = { "endpointUrl": "https://EXAMPLE.org:443/docs" }
+  let wire : Endpoint = @json.from_json(input)
+  assert_eq(ToJson::to_json(wire), input)
 }
 ```
 
-From the module root, run:
-
-```sh
-serde-gen --package src/models && moon test src/models
-```
-
-The generator writes `src/models/serde.generated.mbt`.
-The test checks that Serde encodes the profile without an avatar field.
+`@json.from_json` and `ToJson::to_json` use the generated Serde implementations.
+Both use the JSON key `endpointUrl` and preserve the URL string as written.
 
 ## Key features
 
@@ -119,6 +113,11 @@ import {
 
 From the module root, run the generator before `moon check`, `moon build`, or `moon test`.
 Pass the package directory, not a list of model files.
+
+```sh
+serde-gen --package src/models
+```
+
 One invocation discovers both `#custom.serde` and `#custom.garde` and writes all generated code to `serde.generated.mbt`.
 Import `totto2727/serde/garde` only if the package uses Garde attributes.
 
