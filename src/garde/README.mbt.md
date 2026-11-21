@@ -97,6 +97,7 @@ pub impl @garde.Validate for Signup with fn collect(
 - Validate decoded values separately from JSON decoding.
 - Collect multiple violations with field and index paths.
 - Validate nested values and use custom rules with a typed context.
+- Convert validated URL and IP fields to typed values and back.
 
 ## Prerequisites
 
@@ -107,6 +108,88 @@ See the [Serde prerequisites](https://github.com/totto2727-org/serde#prerequisit
 Follow the [Serde setup](https://github.com/totto2727-org/serde#setup) and select a release that includes Garde.
 Import `totto2727/serde/garde` in the model package.
 For the JSON example above, also import `moonbitlang/core/json` and `totto2727/serde`.
+
+## Typed model conversion with `codec`
+
+Use `#custom.garde(codec)` on a record to generate a second record named `ModelDecoded`.
+Keep `#custom.serde` on the original record so that Serde reads and writes its wire representation.
+
+```mbt nocheck
+///|
+#custom.serde
+#custom.garde(codec)
+pub(all) struct Endpoint {
+  #custom.garde(url)
+  url : String
+}
+```
+
+Run the same generator command as in [Usage](#usage).
+Pass the generated `Endpoint::codec()` to both functions:
+
+```mbt nocheck
+///|
+fn decode_endpoint(value : Endpoint) -> Result[EndpointDecoded, @garde.Report] {
+  @garde.decode(value, Endpoint::codec())
+}
+
+///|
+fn encode_endpoint(value : EndpointDecoded) -> Result[Endpoint, @garde.Report] {
+  @garde.encode(value, Endpoint::codec())
+}
+```
+
+The generator keeps the existing `Validate` implementation and adds this type and these trait implementations:
+
+```mbt nocheck
+///|
+pub(all) struct EndpointDecoded {
+  url : @garde.Url
+}
+
+///|
+pub impl @garde.Decode for Endpoint
+
+///|
+pub impl @garde.Encode for EndpointDecoded
+```
+
+The generated `Endpoint::codec()` pairs the two field conversions:
+
+```mbt nocheck
+///|
+pub fn Endpoint::codec() -> @garde.Codec[Endpoint, EndpointDecoded] {
+  @garde.Codec::new(
+    fn(garde_value) {
+      guard @garde.parse_url(garde_value.url) is Some(garde_field0) else {
+        return Err(
+          @garde.conversion_failure("url", "could not convert validated value"),
+        )
+      }
+      Ok(EndpointDecoded::{ url: garde_field0, })
+    },
+    fn(garde_value) { Endpoint::{ url: garde_value.url.encode(), } },
+  )
+}
+```
+
+`decode` runs the original record validator before converting fields.
+`encode` converts back to the original record and validates the result, so edits or normalization can cause validation to fail.
+The original record is the encoded type; there is no separate `EndpointEncoded` type.
+Use `@garde.validate` on it if you need validation without conversion.
+
+The codec argument identifies the pair at compile time because MoonBit traits cannot associate a different return type with each implementation.
+These functions do not accept or produce `Json`.
+Use Serde's `@json.from_json` before `decode` and `ToJson::to_json` after `encode`.
+
+On a `codec` record, a direct `url` rule converts a `String` to MoonBit Stack's `Url`, re-exported as `@garde.Url`.
+A direct `ip`, `ipv4`, or `ipv6` rule converts a `String` to MoonBit Stack's `Addr`, re-exported as `@garde.Addr`.
+Optional fields preserve `None` and convert only `Some`.
+Other fields keep their original types, including nested fields validated with `dive` or `inner`.
+The URL and IP formatters can normalize the spelling, so encoding does not guarantee the exact original text.
+A successful decode parses these fields once to validate them and once to construct their typed values.
+Generated codecs support records without a validation context.
+For other typed conversions, implement `Decode` and `Encode` for your two models and build the pair with `Codec::new`.
 
 ## API
 
