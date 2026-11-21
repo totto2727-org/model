@@ -125,7 +125,7 @@ Import `totto2727/model/garde` only if the package uses Garde attributes.
 
 Replace the module dependency with `totto2727/model`, then switch the old runtime import to `totto2727/model/serde` and the old Garde import to `totto2727/model/garde`.
 The `@serde` and `@garde` aliases, attributes, and `serde-gen` command are unchanged.
-Re-run `serde-gen` after updating the imports. It recognizes files generated before the move.
+Remove the old generated `serde.generated.mbt` files, then re-run `serde-gen` after updating the imports.
 
 ## API
 
