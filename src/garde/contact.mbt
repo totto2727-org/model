@@ -40,53 +40,6 @@ pub fn email(value : String, international~ : Bool = false) -> String? {
 }
 
 ///|
-// Order matters: card-validate prioritizes specific debit prefixes over credit prefixes.
-let card_brands : ReadOnlyArray[(@string.Regex, Int32, Int32)] = [
-  (re"^4(026|17500|405|508|844|91[37])", 16, 16),
-  (re"^(5(018|0[23]|[68])|6(39|7))", 12, 19),
-  (re"^600", 16, 16),
-  (re"^5019", 16, 16),
-  (re"^4", 13, 16),
-  (re"^220[0-4]", 16, 19),
-  (re"^(5[1-5]|2[2-7])", 16, 16),
-  (re"^3[47]", 15, 15),
-  (re"^3[0689]", 14, 14),
-  (re"^6([045]|22)", 16, 16),
-  (re"^(62|88)", 16, 19),
-  (re"^35", 16, 16),
-]
-
-///|
-/// Check the card-validate 2.4.0 brand prefixes, lengths, and Luhn checksum.
-pub fn credit_card(value : String) -> String? {
-  let length = value.length()
-  if length < 12 || length > 19 {
-    return Some("invalid credit card number")
-  }
-  let mut sum = 0
-  for i in 0..<length {
-    let digit = value[i].to_int() - '0'.to_int()
-    if digit < 0 || digit > 9 {
-      return Some("invalid credit card number")
-    }
-    let weighted = if (length - i) % 2 == 0 { 2 * digit } else { digit }
-    sum += if weighted > 9 { weighted - 9 } else { weighted }
-  }
-  if sum % 10 == 0 {
-    for brand in card_brands {
-      let (regex, min, max) = brand
-      if regex.execute(value[:]) is Some(_) {
-        if min <= length && length <= max {
-          return None
-        }
-        break
-      }
-    }
-  }
-  Some("invalid credit card number")
-}
-
-///|
 /// Check a phone number against its numbering plan without assuming a default region.
 pub fn phone_number(value : String) -> String? {
   if @dialnumber.parse(value, "") is Some(number) &&

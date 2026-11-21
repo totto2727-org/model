@@ -86,7 +86,6 @@ test "contact rules check formats only after a successful decode" {
     "addresses": ["192.0.2.20", "2001:db8::1"],
     "v4": "192.0.2.20",
     "v6": "2001:db8::1",
-    "card": "4111111111111111",
     "phone": "+81 90-1234-5678",
   })
   assert_true(@garde.validate(contact) is Ok(_))
@@ -96,11 +95,10 @@ test "contact rules check formats only after a successful decode" {
     addresses: ["example.com"],
     v4: Some("2001:db8::1"),
     v6: Some("192.0.2.20"),
-    card: Some("4111111111111112"),
     phone: Some("+81 90-1234"),
   }
   assert_eq(invalid_paths(invalid), [
-    "email", "website", "addresses[0]", "v4", "v6", "card", "phone",
+    "email", "website", "addresses[0]", "v4", "v6", "phone",
   ])
 }
 
@@ -207,6 +205,38 @@ test "generic enum validates only its active payload using MoonBit names" {
   assert_true(@garde.validate(works) is Ok(_))
   assert_true(@garde.validate(empty) is Ok(_))
   assert_true(@garde.validate(skipped) is Ok(_))
+}
+
+///|
+test "range bounds follow the field's numeric type" {
+  let valid : @validation.NumericRanges = {
+    wide: 9007199254740993L,
+    unsigned: 18446744073709551615UL,
+    huge: 1000000000000000000000000000001N,
+    single: 1.0F,
+    double: -0.125,
+    base16: 0x20,
+  }
+  assert_true(@garde.validate(valid) is Ok(_))
+  let invalid : @validation.NumericRanges = {
+    wide: 9007199254740992L,
+    unsigned: 18446744073709551613UL,
+    huge: 1000000000000000000000000000000N,
+    single: 1.0000002F,
+    double: -0.25,
+    base16: 0x21,
+  }
+  assert_eq(invalid_paths(invalid), [
+    "wide", "unsigned", "huge", "single", "double", "base16",
+  ])
+}
+
+///|
+test "adjacent wide integers do not collapse when checking a reversed range" {
+  let lower : @validation.ReversedRange = { wide: 9007199254740992L, }
+  let upper : @validation.ReversedRange = { wide: 9007199254740993L, }
+  assert_eq(invalid_paths(lower), ["wide"])
+  assert_eq(invalid_paths(upper), ["wide"])
 }
 
 ///|
