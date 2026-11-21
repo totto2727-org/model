@@ -157,8 +157,6 @@ pub(all) struct ContactDetails {
   v4 : String?
   #custom.garde(ipv6)
   v6 : String?
-  #custom.garde(credit_card)
-  card : String?
   #custom.garde(phone_number)
   phone : String?
 }

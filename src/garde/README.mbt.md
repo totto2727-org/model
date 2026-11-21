@@ -244,7 +244,7 @@ Each rule can add a separate violation to the same field path.
   }
 ```
 
-### `email`, `url`, `ip`, `ipv4`, `ipv6`, `phone_number`, and `credit_card`
+### `email`, `url`, `ip`, `ipv4`, `ipv6`, and `phone_number`
 
 Apply these rules to strings. For an optional string, validation skips `None` unless you also apply `required`.
 
@@ -264,8 +264,6 @@ struct ContactFormats {
   address_v6 : String
   #custom.garde(phone_number)
   phone : String
-  #custom.garde(credit_card)
-  card : String
 }
 ```
 
@@ -273,7 +271,7 @@ Generated checks inside `@garde.Validate::collect`:
 
 ```mbt nocheck
 ///|
-impl @garde.Validate for ContactFormats with fn collect(
+pub impl @garde.Validate for ContactFormats with fn collect(
   garde_self,
   garde_report,
   garde_path,
@@ -313,16 +311,9 @@ impl @garde.Validate for ContactFormats with fn collect(
       garde_report.add(garde_path, message)
     }
   }
-  {
-    let garde_value = garde_self.phone
-    let garde_path = garde_path.field("phone")
-    if @garde.phone_number(garde_value) is Some(message) {
-      garde_report.add(garde_path, message)
-    }
-  }
-  let garde_value = garde_self.card
-  let garde_path = garde_path.field("card")
-  if @garde.credit_card(garde_value) is Some(message) {
+  let garde_value = garde_self.phone
+  let garde_path = garde_path.field("phone")
+  if @garde.phone_number(garde_value) is Some(message) {
     garde_report.add(garde_path, message)
   }
 }
@@ -334,7 +325,6 @@ impl @garde.Validate for ContactFormats with fn collect(
 | `url` | An absolute URL, including schemes such as `mailto:` and `file:`. Uses [MoonURL](https://mooncakes.io/docs/moonbitstack/moonurl) in WHATWG mode. |
 | `ip`, `ipv4`, `ipv6` | Bare IPv4 or IPv6 text, without a port, brackets, or zone identifier. IPv4 uses four decimal octets. Uses [MoonIP](https://mooncakes.io/docs/moonbitstack/moonip). |
 | `phone_number` | An international number with a country calling code. Uses [dialnumber](https://mooncakes.io/docs/sssssurf/dialnumber) for numbering-plan checks and does not assume a default region. |
-| `credit_card` | ASCII digits without separators. Checks a known issuer prefix, the number length, and the Luhn checksum as in [Garde](https://docs.rs/garde/latest/garde/rules/credit_card/). |
 
 These rules do not contact an external service. A valid email or telephone number is not evidence that the address or number is assigned or reachable.
 

@@ -220,7 +220,6 @@ fn parse_rules(
             | "ip"
             | "ipv4"
             | "ipv6"
-            | "credit_card"
             | "phone_number" as name,
           },
         ),

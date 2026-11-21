@@ -29,24 +29,6 @@ test "email validates a bare MoonMail mailbox with Garde length limits" {
 }
 
 ///|
-test "credit_card requires an allowed prefix and length plus a Luhn checksum" {
-  for
-    value in [
-      "4111111111111111", "5555555555554444", "378282246310005", "4222222222222",
-      "6011111111111117",
-    ] {
-    assert_eq(@garde.credit_card(value), None)
-  }
-  for
-    value in [
-      "4111111111111112", "0000000000000000", "4000000000000000006", "4026000000002",
-      "4111 1111 1111 1111", "４111111111111111", "4111111111111111\n",
-    ] {
-    assert_true(@garde.credit_card(value) is Some(_))
-  }
-}
-
-///|
 test "phone_number requires a valid numbering-plan match without a default region" {
   for value in ["+1 202-555-0123", "+44 20 7946 0958", "+81 3-1234-5678"] {
     assert_eq(@garde.phone_number(value), None)

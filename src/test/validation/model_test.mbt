@@ -86,7 +86,6 @@ test "contact rules check formats only after a successful decode" {
     "addresses": ["192.0.2.20", "2001:db8::1"],
     "v4": "192.0.2.20",
     "v6": "2001:db8::1",
-    "card": "4111111111111111",
     "phone": "+81 90-1234-5678",
   })
   assert_true(@garde.validate(contact) is Ok(_))
@@ -96,11 +95,10 @@ test "contact rules check formats only after a successful decode" {
     addresses: ["example.com"],
     v4: Some("2001:db8::1"),
     v6: Some("192.0.2.20"),
-    card: Some("4111111111111112"),
     phone: Some("+81 90-1234"),
   }
   assert_eq(invalid_paths(invalid), [
-    "email", "website", "addresses[0]", "v4", "v6", "card", "phone",
+    "email", "website", "addresses[0]", "v4", "v6", "phone",
   ])
 }
 
