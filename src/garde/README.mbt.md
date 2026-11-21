@@ -180,7 +180,8 @@ pub impl @garde.Validate for Contact with fn collect(
 ```
 
 `length` uses MoonBit's `String.length()` (UTF-16 code units) for strings and counts items for arrays, maps, and byte strings. Other types can implement `@garde.Length`.
-Use `min`, `max`, both, or `equal` alone. Quote decimal bounds because the MoonBit attribute parser does not accept bare numeric literals. `range` also accepts a named constant and compares values in their own type, without converting the value to `Double`.
+Use `min`, `max`, both, or `equal` alone. Quote numeric literals because the MoonBit attribute parser does not accept bare numbers. `range` also accepts named constants.
+MoonBit interprets each bound using the field's type and checks that it fits. Garde does not convert bounds to `Double` or check numeric limits itself.
 Use `skip` alone on a field, payload, or variant.
 
 ### `ascii`, `alphanumeric`, `contains`, `prefix`, `suffix`, and `custom`

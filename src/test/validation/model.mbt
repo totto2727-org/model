@@ -196,3 +196,27 @@ pub(all) struct OrderChecks {
 fn is_strict(value : OrderChecks) -> Bool {
   value.strict
 }
+
+///|
+#custom.garde
+pub(all) struct NumericRanges {
+  #custom.garde(range(min="9007199254740993", max="9007199254740994"))
+  wide : Int64
+  #custom.garde(range(min="18446744073709551614", max="18446744073709551615"))
+  unsigned : UInt64
+  #custom.garde(range(equal="1000000000000000000000000000001N"))
+  huge : @bigint.BigInt
+  #custom.garde(range(min="1.00000002", max="1.00000001"))
+  single : Float
+  #custom.garde(range(min="-1.25e-1", max="2_000.0"))
+  double : Double
+  #custom.garde(range(min="0x10", max="0x20"))
+  base16 : Int32
+}
+
+///|
+#custom.garde
+pub(all) struct ReversedRange {
+  #custom.garde(range(min="9007199254740993", max="9007199254740992"))
+  wide : Int64
+}

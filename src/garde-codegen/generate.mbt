@@ -9,7 +9,7 @@ pub suberror GenerateError {
 ///|
 priv enum Rule {
   Length(Int32?, Int32?)
-  Range(String?, String?)
+  Range(RangeBound?, RangeBound?)
   Required
   Dive
   DiveWith
@@ -108,12 +108,42 @@ fn function_name(id : @attribute.Id) -> String {
 }
 
 ///|
+priv enum RangeBound {
+  Literal(String)
+  Reference(@attribute.Id)
+}
+
+///|
+fn range_literal(
+  raw : String,
+  at : String,
+  key : String,
+) -> String raise GenerateError {
+  // Use MoonBit's parser and retain only the numeric token, not arbitrary source.
+  let (items, reports) = @parser.parse_string("let bound = \{raw}")
+  if reports.is_empty() &&
+    items is More(TopLetDef(expr=Constant(c~, ..), ..), tail=Empty) {
+    match c {
+      Int(text) | Double(text) => return text
+      Int64(text) => return text + "L"
+      UInt(text) => return text + "U"
+      UInt64(text) => return text + "UL"
+      BigInt(text) => return text + "N"
+      Float(text) => return text + "F"
+      _ => ()
+    }
+  }
+  raise GenerateError(
+    "\{at}: \{key} must be a quoted MoonBit numeric literal or a constant",
+  )
+}
+
+///|
 fn range_bounds(
   props : @list.List[@attribute.Prop],
   at : String,
-) -> (String?, String?) raise GenerateError {
+) -> (RangeBound?, RangeBound?) raise GenerateError {
   let bounds = Map([])
-  let literals = Map([])
   for prop in props {
     guard prop is Labeled("min" | "max" | "equal" as key, expr) else {
       raise GenerateError("\{at}: range expects min, max, or equal")
@@ -121,28 +151,15 @@ fn range_bounds(
     if bounds.contains(key) {
       fail(at, "repeated range bound: \{key}")
     }
-    let code = match expr {
-      Ident(id) => function_name(id)
-      String(raw) => {
-        let json = @json.parse(raw[:]) catch {
-          _ =>
-            raise GenerateError(
-              "\{at}: \{key} must be a quoted decimal or a constant",
-            )
-        }
-        guard json is Number(n, ..) && !n.is_inf() else {
-          raise GenerateError("\{at}: \{key} must be a finite decimal")
-        }
-        literals[key] = n
-        // MoonBit parses integer literals independently of the JSON parser.
-        raw
-      }
+    let bound : RangeBound = match expr {
+      Ident(id) => Reference(id)
+      String(raw) => Literal(range_literal(raw, at, key))
       _ =>
         raise GenerateError(
-          "\{at}: \{key} must be a quoted decimal or a constant",
+          "\{at}: \{key} must be a quoted MoonBit numeric literal or a constant",
         )
     }
-    bounds[key] = code
+    bounds[key] = bound
   }
   let min = bounds.get("min")
   let max = bounds.get("max")
@@ -153,10 +170,6 @@ fn range_bounds(
     None => {
       if bounds.is_empty() {
         fail(at, "range requires a bound")
-      }
-      if (literals.get("min"), literals.get("max")) is (Some(a), Some(b)) &&
-        a > b {
-        fail(at, "min cannot exceed max")
       }
       (min, max)
     }
@@ -312,10 +325,11 @@ fn bound_expr(value : Int32?) -> String {
 }
 
 ///|
-fn range_bound_expr(value : String?) -> String {
+fn range_bound_expr(value : RangeBound?) -> String {
   match value {
     None => "None"
-    Some(code) => "Some(\{code})"
+    Some(Literal(code)) => "Some(\{code})"
+    Some(Reference(id)) => "Some(\{function_name(id)})"
   }
 }
 
@@ -432,15 +446,7 @@ fn emit_rule(
       "@garde.length(\{p}value, \{bound_expr(min)}, \{bound_expr(max)})"
     }
     Range(min, max) => {
-      if ty is Name(constr_id={ id: Ident(name="Int" | "Int32"), .. }, ..) {
-        for bound in [min, max] {
-          if bound is Some(text) && text is ['-' | '0'..<='9', ..] {
-            ignore(@string.parse_int(text[:], radix=10)) catch {
-              _ => fail(at, "range bound must be a decimal Int")
-            }
-          }
-        }
-      }
+      // The field supplies the expected type of both bounds to the compiler.
       require_bound(emitter, ty, "Compare")
       require_bound(emitter, ty, "Show")
       "@garde.range(\{p}value, \{range_bound_expr(min)}, \{range_bound_expr(max)})"

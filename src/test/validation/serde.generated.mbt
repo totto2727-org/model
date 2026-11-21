@@ -859,3 +859,82 @@ pub impl @garde.Validate for OrderChecks with fn collect(
     garde__value.collect_with(garde__self.policy, garde__report, garde__path)
   }
 }
+
+///|
+pub impl @garde.Validate for NumericRanges with fn collect(
+  garde__self,
+  garde__report,
+  garde__path,
+) {
+  {
+    let garde__value = garde__self.wide
+    let garde__path = garde__path.field("wide")
+    if @garde.range(
+        garde__value,
+        Some(9007199254740993),
+        Some(9007199254740994),
+      )
+      is Some(message) {
+      garde__report.add(garde__path, message)
+    }
+  }
+  {
+    let garde__value = garde__self.unsigned
+    let garde__path = garde__path.field("unsigned")
+    if @garde.range(
+        garde__value,
+        Some(18446744073709551614),
+        Some(18446744073709551615),
+      )
+      is Some(message) {
+      garde__report.add(garde__path, message)
+    }
+  }
+  {
+    let garde__value = garde__self.huge
+    let garde__path = garde__path.field("huge")
+    if @garde.range(
+        garde__value,
+        Some(1000000000000000000000000000001N),
+        Some(1000000000000000000000000000001N),
+      )
+      is Some(message) {
+      garde__report.add(garde__path, message)
+    }
+  }
+  {
+    let garde__value = garde__self.single
+    let garde__path = garde__path.field("single")
+    if @garde.range(garde__value, Some(1.00000002), Some(1.00000001))
+      is Some(message) {
+      garde__report.add(garde__path, message)
+    }
+  }
+  {
+    let garde__value = garde__self.double
+    let garde__path = garde__path.field("double")
+    if @garde.range(garde__value, Some(-1.25e-1), Some(2_000.0))
+      is Some(message) {
+      garde__report.add(garde__path, message)
+    }
+  }
+  let garde__value = garde__self.base16
+  let garde__path = garde__path.field("base16")
+  if @garde.range(garde__value, Some(0x10), Some(0x20)) is Some(message) {
+    garde__report.add(garde__path, message)
+  }
+}
+
+///|
+pub impl @garde.Validate for ReversedRange with fn collect(
+  garde__self,
+  garde__report,
+  garde__path,
+) {
+  let garde__value = garde__self.wide
+  let garde__path = garde__path.field("wide")
+  if @garde.range(garde__value, Some(9007199254740993), Some(9007199254740992))
+    is Some(message) {
+    garde__report.add(garde__path, message)
+  }
+}

@@ -210,6 +210,38 @@ test "generic enum validates only its active payload using MoonBit names" {
 }
 
 ///|
+test "range bounds follow the field's numeric type" {
+  let valid : @validation.NumericRanges = {
+    wide: 9007199254740993L,
+    unsigned: 18446744073709551615UL,
+    huge: 1000000000000000000000000000001N,
+    single: 1.0F,
+    double: -0.125,
+    base16: 0x20,
+  }
+  assert_true(@garde.validate(valid) is Ok(_))
+  let invalid : @validation.NumericRanges = {
+    wide: 9007199254740992L,
+    unsigned: 18446744073709551613UL,
+    huge: 1000000000000000000000000000000N,
+    single: 1.0000002F,
+    double: -0.25,
+    base16: 0x21,
+  }
+  assert_eq(invalid_paths(invalid), [
+    "wide", "unsigned", "huge", "single", "double", "base16",
+  ])
+}
+
+///|
+test "adjacent wide integers do not collapse when checking a reversed range" {
+  let lower : @validation.ReversedRange = { wide: 9007199254740992L, }
+  let upper : @validation.ReversedRange = { wide: 9007199254740993L, }
+  assert_eq(invalid_paths(lower), ["wide"])
+  assert_eq(invalid_paths(upper), ["wide"])
+}
+
+///|
 test "same decoded value validates independently with two typed policies" {
   let request : @validation.Request = @json.from_json({
     "allocations": [{ "count": 3 }, { "count": 8 }],

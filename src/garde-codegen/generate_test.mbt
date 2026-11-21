@@ -4,8 +4,11 @@ test "reject invalid rules at the field's source location" {
     (attribute, field_type, expected) in [
       ("length(min=2)", "String", "malformed #custom.garde"),
       ("length(min=\"-1\")", "String", "bounds must be non-negative"),
-      ("range(min=\"2147483648\")", "Int", "must be a decimal Int"),
-      ("range(min=\"2\", max=\"1\")", "Int", "min cannot exceed max"),
+      (
+        "range(min=\"1 + 2\")", "Int", "must be a quoted MoonBit numeric literal",
+      ),
+      ("range(min=\"true\")", "Int", "must be a quoted MoonBit numeric literal"),
+      ("range(min=\"1\", equal=\"2\")", "Int", "equal cannot be combined"),
       ("length(min=\"1\", equal=\"2\")", "String", "equal cannot be combined"),
       ("inner(required)", "String", "inner expects an Array"),
       ("required", "Int", "required expects Option"),
