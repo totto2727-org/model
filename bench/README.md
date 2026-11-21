@@ -1,4 +1,6 @@
-# JSON codec benchmarks
+# JSON codec and validation benchmarks
+
+## JSON codecs
 
 Compare four ways to decode the same nested request in a native release build.
 
@@ -22,11 +24,11 @@ moon test . --target native --deny-warn
 moon bench . --target native --release --deny-warn --no-parallelize
 ```
 
-The workspace uses Serde from this checkout and Lens `0.4.4` from Mooncakes.
-The `dev_build` rule in [`moon.pkg`](moon.pkg) writes `serde.generated.mbt` locally. Do not add that file to Git.
+The workspace uses Serde and Garde from this checkout, Lens `0.4.4`, and [MoonModel `0.2.1`](https://github.com/moonbitstack/moonmodel/tree/v0.2.1).
+Each `dev_build` entry in [`moon.pkg`](moon.pkg) writes a separate generated file for its model source. Do not add the generated files to Git.
 Run on an idle machine and repeat the command before drawing conclusions from small differences.
 
-## Input and timing
+## Codec input and timing
 
 The [Lens benchmark fixture](https://github.com/totto2727-org/lens/blob/main/src/lens_bench_test.mbt) supplies the JSON document in [`input_wbtest.mbt`](input_wbtest.mbt).
 All four methods return the same [`Request`](model.mbt), with 12 typed values from the document.
@@ -41,5 +43,20 @@ The tests check the complete typed output and rejection of invalid required data
 
 The benchmarks use MoonBit's standard [`@bench.T`](https://mooncakes.io/docs/moonbitlang/core/bench) and pass each timed result to `b.keep` so the compiler cannot discard the result.
 The encoding test checks that both encoders produce the same `Json` and that it decodes to the original record. A decoding error stops the run.
-`moon bench` controls sampling and prints the statistics for each combination.
-These results cover a single fixture and do not measure application-level validation or concurrent throughput.
+
+## Validation input and timing
+
+Both validators check the same [group and member data](validation_model.mbt): label and name lengths, member count, and an inclusive age range for each member.
+The fixture uses ASCII strings because Garde measures UTF-16 code units and JSON Schema measures Unicode code points.
+The [validation test](validation_bench_wbtest.mbt) checks acceptance, rejection, and the number of diagnostics for invalid input before you run the benchmarks.
+The benchmarks time valid input and the APIs that can return all diagnostics, not fail-fast validation.
+
+| Measurement | Garde | MoonModel |
+| --- | --- | --- |
+| Validation only | Validate an existing typed record. | Check its existing `Json` with `Schema::faults`. |
+| JSON text to a validated typed record | Parse with core JSON, decode with Serde, then validate the record. | Parse with core JSON, check the `Json`, then decode with the same Serde implementation. |
+
+MoonModel builds its schema with `@verify.schema` before timing and reuses it in each iteration.
+The validation-only rows start from each validator's native input, so they do not measure conversion or identical shape checks.
+The JSON text rows start with the same string and return the same typed record.
+`moon bench` controls sampling and prints the statistics for each combination. These fixtures do not measure concurrent throughput or application-level logic.
