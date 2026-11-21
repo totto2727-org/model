@@ -133,6 +133,8 @@ For command-line options, see the [`serde-gen` package README](https://mooncakes
 
 ## Development
 
+See the [Rust Serde and garde feature matrix](docs/upstream-feature-matrix.md) for supported features, differences, and the source versions used for comparison.
+
 For repository maintenance instructions, see [AGENTS.md](https://github.com/totto2727-org/serde/blob/main/AGENTS.md).
 
 ## License
