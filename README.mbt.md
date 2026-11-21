@@ -1,6 +1,6 @@
-# Serde for MoonBit
+# Model for MoonBit
 
-Serde generates JSON encoders and decoders for MoonBit types.
+Model provides two packages: Serde for JSON codecs and Garde for validation and typed model conversion.
 Add `#custom.serde` to a type to control how it reads and writes JSON.
 
 This project is inspired by Rust's [Serde](https://serde.rs/) for serialization and [garde](https://docs.rs/garde/latest/garde/) for validation.
@@ -48,10 +48,10 @@ Both use the JSON key `endpointUrl` and preserve the URL string as written.
 
 ## Setup
 
-From the root of your MoonBit module, add the [published library](https://mooncakes.io/docs/totto2727/serde):
+From the root of your MoonBit module, add the [Model library](https://mooncakes.io/docs/totto2727/model):
 
 ```sh
-moon add totto2727/serde
+moon add totto2727/model
 ```
 
 ### Run without installing
@@ -60,13 +60,13 @@ Use `moonx` when the CLI is available on Mooncakes, or use Nix:
 
 ```sh
 moonx totto2727/serde-gen --help
-nix run github:totto2727-org/serde -- --help
+nix run github:totto2727-org/model -- --help
 ```
 
 ### Install
 
 ```sh
-nix profile add github:totto2727-org/serde
+nix profile add github:totto2727-org/model
 ```
 
 Add the `bin` directory of your Nix profile to `PATH` if your shell cannot find `serde-gen`.
@@ -80,15 +80,15 @@ Set `system` to `aarch64-darwin` or `x86_64-linux`.
 {
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
-    serde.url = "github:totto2727-org/serde";
+    model.url = "github:totto2727-org/model";
   };
 
-  outputs = { nixpkgs, serde, ... }:
+  outputs = { nixpkgs, model, ... }:
     let
       system = "aarch64-darwin";
       pkgs = import nixpkgs {
         inherit system;
-        overlays = [ serde.overlays.default ];
+        overlays = [ model.overlays.default ];
       };
     in
     {
@@ -107,7 +107,7 @@ Set `system` to `aarch64-darwin` or `x86_64-linux`.
 ///|
 import {
   "moonbitlang/core/json",
-  "totto2727/serde",
+  "totto2727/model/serde",
 }
 ```
 
@@ -119,15 +119,21 @@ serde-gen --package src/models
 ```
 
 One invocation discovers both `#custom.serde` and `#custom.garde` and writes all generated code to `serde.generated.mbt`.
-Import `totto2727/serde/garde` only if the package uses Garde attributes.
+Import `totto2727/model/garde` only if the package uses Garde attributes.
+
+### Migrate from `totto2727/serde`
+
+Replace the module dependency with `totto2727/model`, then switch the old runtime import to `totto2727/model/serde` and the old Garde import to `totto2727/model/garde`.
+The `@serde` and `@garde` aliases, attributes, and `serde-gen` command are unchanged.
+Re-run `serde-gen` after updating the imports. It recognizes files generated before the move.
 
 ## API
 
 Use the Mooncakes version selector to read the documentation for the version you installed.
 
-- [Serde API](https://mooncakes.io/docs/totto2727/serde): Runtime helpers used by generated JSON codecs.
-- [Serde attributes](https://mooncakes.io/docs/totto2727/serde/serde-codegen): `#custom.serde` examples and generated codec excerpts.
-- [Garde API and attributes](https://mooncakes.io/docs/totto2727/serde/garde): Validation types, `#custom.garde` examples, and generated validator excerpts. Select a release that includes Garde.
+- [Serde API](https://mooncakes.io/docs/totto2727/model/serde): Runtime helpers used by generated JSON codecs.
+- [Serde attributes](https://mooncakes.io/docs/totto2727/model/serde-codegen): `#custom.serde` examples and generated codec excerpts.
+- [Garde API and attributes](https://mooncakes.io/docs/totto2727/model/garde): Validation types, `#custom.garde` examples, and generated validator excerpts.
 
 For command-line options, see the [`serde-gen` package README](https://mooncakes.io/docs/totto2727/serde-gen) after the CLI release is available on Mooncakes.
 
@@ -135,10 +141,10 @@ For command-line options, see the [`serde-gen` package README](https://mooncakes
 
 See the [Rust Serde and garde feature matrix](docs/upstream-feature-matrix.md) for supported features, differences, and the source versions used for comparison.
 
-For repository maintenance instructions, see [AGENTS.md](https://github.com/totto2727-org/serde/blob/main/AGENTS.md).
+For repository maintenance instructions, see [AGENTS.md](https://github.com/totto2727-org/model/blob/main/AGENTS.md).
 
 ## License
 
-[MIT](https://github.com/totto2727-org/serde/blob/main/LICENSE)
+[MIT](https://github.com/totto2727-org/model/blob/main/LICENSE)
 
 _This README follows the [share-artifact guidance](https://raw.githubusercontent.com/totto2727-org/agent/refs/heads/main/plugins/totto2727-coding/skills/share-artifact/SKILL.md) and [README template](https://raw.githubusercontent.com/totto2727-org/agent/refs/heads/main/plugins/totto2727-coding/skills/share-artifact/readme/template.md)._

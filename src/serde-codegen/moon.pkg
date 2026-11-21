@@ -9,5 +9,5 @@ import {
 }
 
 import {
-  "totto2727/serde/serde-codegen" @serde_codegen,
+  "totto2727/model/serde-codegen" @serde_codegen,
 } for "test"

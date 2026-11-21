@@ -11,9 +11,10 @@ MoonBit Garde validates typed values independently of JSON and can generate a se
 | Rust Serde | [`1.0.229`](https://docs.rs/serde/1.0.229/serde/), tag `v1.0.229` | [`7fc3b4c30c94f73a96ebd1553f2b090d928fc3a8`](https://github.com/serde-rs/serde/tree/7fc3b4c30c94f73a96ebd1553f2b090d928fc3a8) |
 | Rust Serde manual | `serde.rs` documentation snapshot | [`c4a897bc01fb358075ddd1f6235ed54081e88b84`](https://github.com/serde-rs/serde-rs.github.io/tree/c4a897bc01fb358075ddd1f6235ed54081e88b84) |
 | Rust garde | [`0.23.0`](https://docs.rs/garde/0.23.0/garde/), tag `v0.23.0` | [`62b71b12102bfcef0041672ef9b7d6b0d5b74369`](https://github.com/jprochazk/garde/tree/62b71b12102bfcef0041672ef9b7d6b0d5b74369) |
-| MoonBit Serde and Garde | `totto2727/serde` `0.1.0` in [`moon.mod`](../moon.mod) | [`e652d471c4de9e5eab10c5f35ac61597c7d354e7`](https://github.com/totto2727-org/serde/tree/e652d471c4de9e5eab10c5f35ac61597c7d354e7) |
+| MoonBit Serde and Garde | `0.1.0`, then named `totto2727/serde` | [`e652d471c4de9e5eab10c5f35ac61597c7d354e7`](https://github.com/totto2727-org/model/tree/e652d471c4de9e5eab10c5f35ac61597c7d354e7) |
 
-The MoonBit row identifies a source snapshot, not the contents of the published Mooncakes archive with the same version.
+The MoonBit row identifies a source snapshot, not the contents of a published Mooncakes archive with the same version.
+The module is now named `totto2727/model` in [`moon.mod`](../moon.mod), with separate `serde` and `garde` packages.
 This is a feature comparison based on upstream docs, local code, and local tests, not a cross-language conformance test.
 It does not inventory format crates such as `serde_json`, third-party integrations, or every built-in Rust type implementation.
 
@@ -113,12 +114,13 @@ For MoonBit syntax and examples, see [Garde attributes](../src/garde/README.mbt.
 | Generic models and nested bounds | Partial | Infers relevant bounds for direct uses of type parameters. Use `bounds` for supported explicit traits such as `Length`, `Validate`, and `Eq`. |
 | `Validate::Context` and access to `self` or context in rules | Partial | `context=Type` generates `validate_with` and `collect_with` instead of a context-associated `Validate` implementation. Named callbacks can receive context, but bounds cannot use context expressions. |
 | Error reports, structured paths, and accumulation | Supported | Collects multiple string messages and exposes typed field/index path segments. Names come from the model, not JSON aliases. |
+| `Unvalidated<T>` and `Valid<T>` wrappers | Not provided | No generic type that proves a value passed validation. `ModelDecoded` is a separate record with a public constructor that does not run wire validation. |
 | I18n and report serialization (`serde` feature) | Not provided | No built-in translation hook or Serde-compatible format for reports. Applications can translate or serialize their own errors. |
 | Rule-specific traits and `adapt` | Partial | Implement `Length`, use `custom`, or implement `Validate` directly. No general per-rule adapter lookup. |
 | Cargo rule toggles and Rust-specific integrations | Not provided | There are no Cargo-style feature flags for rule packages, `js-sys`, or `rust_decimal` support. The Rust README's web-framework integrations are separate crates. |
 | Typed wire/model conversion | MoonBit extension | Ordinary records get a `ModelDecoded` type, `to_decoded()` and `to_encoded()`. Direct URL, IP, and phone rules use the underlying libraries' types in the decoded record. `validate_only`, contextual records, tuple structs, and enums generate validation without a decoded record. |
 
-The [typed conversion API](../src/garde/README.mbt.md#typed-model-conversion) validates on both directions of conversion.
+The [typed conversion API](../src/garde/README.mbt.md#typed-model-conversion) validates in both directions.
 The decoded constructor takes already-typed fields but does not run all wire constraints, and encoding may normalize text.
 Apply rules that depend on external state in domain code, after decoding.
 

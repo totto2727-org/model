@@ -52,13 +52,13 @@ The URL formatter normalizes the host and removes the default port before `encod
 
 ## Prerequisites
 
-See the [Serde prerequisites](https://github.com/totto2727-org/serde#prerequisites) for the shared Moon toolchain and generator requirements.
+See the [Model prerequisites](https://github.com/totto2727-org/model#prerequisites) for the shared Moon toolchain and generator requirements.
 
 ## Setup
 
-Follow the [Serde setup](https://github.com/totto2727-org/serde#setup) and select a release that includes Garde.
-Import `totto2727/serde/garde` in the model package.
-For the JSON example above, also import `moonbitlang/core/json` and `totto2727/serde`.
+Follow the [Model setup](https://github.com/totto2727-org/model#setup).
+Import `totto2727/model/garde` in the model package.
+For the JSON example above, also import `moonbitlang/core/json` and `totto2727/model/serde`.
 
 ## Typed model conversion
 
@@ -674,8 +674,8 @@ A published request with an absent or short tag reports `tag`, not `tag[0]`. An 
 
 ## Development
 
-For repository maintenance instructions, see [AGENTS.md](https://github.com/totto2727-org/serde/blob/main/AGENTS.md).
+For repository maintenance instructions, see [AGENTS.md](https://github.com/totto2727-org/model/blob/main/AGENTS.md).
 
 ## License
 
-[MIT](https://github.com/totto2727-org/serde/blob/main/LICENSE)
+[MIT](https://github.com/totto2727-org/model/blob/main/LICENSE)

@@ -5,7 +5,7 @@ These traits control how a MoonBit type reads and writes JSON.
 
 ## Usage
 
-See [Serde Usage](https://github.com/totto2727-org/serde#usage) for a complete example that reads and writes the same `Endpoint` model with `@json.from_json` and `ToJson::to_json`.
+See [Serde Usage](https://github.com/totto2727-org/model#usage) for a complete example that reads and writes the same `Endpoint` model with `@json.from_json` and `ToJson::to_json`.
 For more field options, see the [`Profile` record](#record-options) and its [complete generated codec](#complete-generated-codec).
 
 ## Key features
@@ -16,11 +16,11 @@ For more field options, see the [`Profile` record](#record-options) and its [com
 
 ## Prerequisites
 
-See the [Serde prerequisites](https://github.com/totto2727-org/serde#prerequisites) for the shared Moon toolchain and generator requirements.
+See the [Model prerequisites](https://github.com/totto2727-org/model#prerequisites) for the shared Moon toolchain and generator requirements.
 
 ## Setup
 
-Follow the [Serde setup](https://github.com/totto2727-org/serde#setup) and import `moonbitlang/core/json` and `totto2727/serde` in the model package.
+Follow the [Model setup](https://github.com/totto2727-org/model#setup) and import `moonbitlang/core/json` and `totto2727/model/serde` in the model package.
 
 ## API
 
@@ -736,8 +736,8 @@ If no untagged variant matches, the message includes the path and reason for eac
 
 ## Development
 
-For repository maintenance instructions, see [AGENTS.md](https://github.com/totto2727-org/serde/blob/main/AGENTS.md).
+For repository maintenance instructions, see [AGENTS.md](https://github.com/totto2727-org/model/blob/main/AGENTS.md).
 
 ## License
 
-[MIT](https://github.com/totto2727-org/serde/blob/main/LICENSE)
+[MIT](https://github.com/totto2727-org/model/blob/main/LICENSE)

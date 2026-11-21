@@ -29,7 +29,7 @@ Run the generator again after you add, change, or remove models.
 
 ## Setup
 
-Add the [Serde library](https://mooncakes.io/docs/totto2727/serde) to your MoonBit module and [configure your model package](https://github.com/totto2727-org/serde#generate-code-before-a-build).
+Add the [Model library](https://mooncakes.io/docs/totto2727/model) to your MoonBit module and [configure your model package](https://github.com/totto2727-org/model#generate-code-before-a-build).
 Use a release that includes the attributes in your models.
 
 ### Run without installing
@@ -38,24 +38,24 @@ Use `moonx` when the CLI is available on Mooncakes, or use Nix:
 
 ```sh
 moonx totto2727/serde-gen --help
-nix run github:totto2727-org/serde -- --help
+nix run github:totto2727-org/model -- --help
 ```
 
 ### Install
 
 ```sh
-nix profile add github:totto2727-org/serde
+nix profile add github:totto2727-org/model
 ```
 
 Add the `bin` directory of your Nix profile to `PATH` if your shell cannot find `serde-gen`.
 
 ### Nix flake
 
-Use the [Serde overlay example](https://github.com/totto2727-org/serde#nix-flake) to add `serde-gen` to a development shell.
+Use the [Model overlay example](https://github.com/totto2727-org/model#nix-flake) to add `serde-gen` to a development shell.
 
 ## API
 
-For annotated models and generated code, see [Serde attributes](https://mooncakes.io/docs/totto2727/serde/serde-codegen) and [Garde attributes](https://mooncakes.io/docs/totto2727/serde/garde).
+For annotated models and generated code, see [Serde attributes](https://mooncakes.io/docs/totto2727/model/serde-codegen) and [Garde attributes](https://mooncakes.io/docs/totto2727/model/garde).
 
 ### Command reference
 
@@ -87,8 +87,8 @@ The generator writes help to standard output and errors to standard error.
 
 ## Development
 
-For repository maintenance instructions, see [AGENTS.md](https://github.com/totto2727-org/serde/blob/main/AGENTS.md).
+For repository maintenance instructions, see [AGENTS.md](https://github.com/totto2727-org/model/blob/main/AGENTS.md).
 
 ## License
 
-[MIT](https://github.com/totto2727-org/serde/blob/main/LICENSE)
+[MIT](https://github.com/totto2727-org/model/blob/main/LICENSE)

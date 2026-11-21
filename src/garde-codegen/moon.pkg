@@ -7,9 +7,9 @@ import {
   "moonbitlang/parser/attribute",
   "moonbitlang/parser/fmt",
   "moonbitlang/parser/syntax",
-  "totto2727/serde/serde-codegen" @serde_codegen,
+  "totto2727/model/serde-codegen" @serde_codegen,
 }
 
 import {
-  "totto2727/serde/garde-codegen" @garde_codegen,
+  "totto2727/model/garde-codegen" @garde_codegen,
 } for "test"
