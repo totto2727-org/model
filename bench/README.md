@@ -1,5 +1,43 @@
 # JSON codec and validation benchmarks
 
+## Recorded results
+
+These are mean times per operation from one `moon bench` run on 2026-11-21, with 10 samples per case.
+The run used the native release build on an Apple M1 Pro (arm64, macOS 27.2) with Moon `0.1.20261117` (`eb64713`) and `moonc` `v0.10.21+06da1ed44`.
+Model `0.1.0` came from [commit `1512774`](https://github.com/totto2727-org/model/commit/15127745f2db2935db0e7e6c9f034c521532b617).
+The comparison used Lens `0.4.4`, Community Serde `0.3.1`, and MoonModel `0.2.1`.
+See [Run the comparison](#run-the-comparison) for the command and the sections below for the fixtures.
+
+### JSON decoding
+
+| Method | Core `Json` to model, no parsing | JSON text to model, parsing included |
+| --- | ---: | ---: |
+| Pattern matching | 319.31 ns | 6.65 µs |
+| Lens, paths built per call | 2.63 µs | 9.04 µs |
+| Lens, prebuilt paths | 499.90 ns | 6.84 µs |
+| Model Serde | 441.18 ns | 6.78 µs |
+| Community Serde | Not measured | 3.65 µs |
+
+### JSON encoding
+
+| Method | Model to core `Json`, no stringification | Model to JSON text, stringification included |
+| --- | ---: | ---: |
+| Hand-written encoder | 992.57 ns | 2.27 µs |
+| Model Serde | 770.48 ns | 2.04 µs |
+| Community Serde | Not measured | 1.16 µs |
+
+Community Serde reads and writes JSON text directly. Its generic value type is not core `Json`, so it has no result in the core `Json` columns.
+
+### Validation
+
+| Method | Validation only, no parsing or model conversion | JSON text to validated model, parsing included |
+| --- | ---: | ---: |
+| Garde | 409.47 ns | 1.86 µs |
+| MoonModel | 13.46 µs | 14.98 µs |
+
+The validation-only cases start from different inputs: Garde validates a typed model, and MoonModel validates a core `Json` value.
+The JSON text cases start from the same string and return the same typed model.
+
 ## JSON codecs
 
 Compare five ways to decode the same nested request from JSON text in a native release build.
@@ -41,8 +79,6 @@ The tests check the complete typed output and rejection of invalid required data
 - **Parsed JSON: decode only**: Decode the same core `Json`, parsed before timing.
 - **ToJson: encode to JSON value**: Encode the same typed request into a fresh core `Json`.
 - **ToJson: encode and stringify**: Write the same typed request as JSON text.
-
-Community Serde reads and writes JSON text directly. Its generic value type is not MoonBit's core `Json`, so it participates only in the text benchmarks.
 
 The benchmarks use MoonBit's standard [`@bench.T`](https://mooncakes.io/docs/moonbitlang/core/bench) and pass each timed result to `b.keep` so the compiler cannot discard the result.
 The encoding tests compare the JSON values, not the spelling of the output text, and check that decoding restores the original values. A codec error stops the run.
