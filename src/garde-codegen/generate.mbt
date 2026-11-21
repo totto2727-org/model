@@ -119,23 +119,32 @@ fn range_literal(
   at : String,
   key : String,
 ) -> String raise GenerateError {
-  // Use MoonBit's parser and retain only the numeric token, not arbitrary source.
-  let (items, reports) = @parser.parse_string("let bound = \{raw}")
-  if reports.is_empty() &&
-    items is More(TopLetDef(expr=Constant(c~, ..), ..), tail=Empty) {
-    match c {
-      Int(text) | Double(text) => return text
-      Int64(text) => return text + "L"
-      UInt(text) => return text + "U"
-      UInt64(text) => return text + "UL"
-      BigInt(text) => return text + "N"
-      Float(text) => return text + "F"
-      _ => ()
-    }
-  }
-  raise GenerateError(
+  let { tokens, errors, .. } = @lexer.tokens_from_string(raw[:], comment=true)
+  let invalid = GenerateError(
     "\{at}: \{key} must be a quoted MoonBit numeric literal or a constant",
   )
+  guard errors.is_empty() else { raise invalid }
+  let (sign, token) = match tokens {
+    [(token, _, _), (EOF, _, _)] => ("", token)
+    [(MINUS, _, _), (token, _, _), (EOF, _, _)] => ("-", token)
+    _ => raise invalid
+  }
+  let constant = match token {
+    INT(text) => @syntax.make_int(text)
+    FLOAT(text) => @syntax.make_float(text)
+    DOUBLE(text) => Double(text)
+    _ => raise invalid
+  }
+  match constant {
+    Int(text)
+    | Int64(text)
+    | UInt(text)
+    | UInt64(text)
+    | BigInt(text)
+    | Double(text)
+    | Float(text) => sign + text
+    _ => raise invalid
+  }
 }
 
 ///|
