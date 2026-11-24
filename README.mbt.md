@@ -127,6 +127,8 @@ See MoonBit's [package configuration](https://github.com/moonbitlang/moonbit-doc
 
 ## API
 
+The [Model agent skill](.agents/skills/model/SKILL.md) explains when to use Serde or Garde at a JSON boundary.
+
 Use the Mooncakes version selector to read the documentation for the version you installed.
 
 - [Serde API](https://mooncakes.io/docs/totto2727/model/serde): Runtime helpers used by generated JSON codecs.
